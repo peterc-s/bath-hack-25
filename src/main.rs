@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
+
+#[derive(Component)]
+struct Bonnie;
 
 fn main() {
     App::new()
@@ -9,6 +12,13 @@ fn main() {
                         transparent: true,
                         decorations: false,
                         resizable: false,
+                        has_shadow: false,
+                        titlebar_shown: false,
+                        titlebar_transparent: false,
+                        titlebar_show_buttons: false,
+                        titlebar_show_title: false,
+                        title: "Bonnie Buddy".to_string(),
+                        resolution: WindowResolution::from(Vec2::new(100.0, 100.0)),
                         ..default()
                     }),
                     ..default()
