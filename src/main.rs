@@ -7,6 +7,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
+#[derive(Debug)]
 struct State {
     window: Arc<Window>,
     device: wgpu::Device,
@@ -16,19 +17,20 @@ struct State {
     surface_format: wgpu::TextureFormat,
 }
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 impl State {
-    async fn new(window: Arc<Window>) -> State {
+    async fn new(window: Arc<Window>) -> Result<State> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
-            .unwrap();
+            .ok_or(anyhow!("Couldn't get adapter."))?;
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default(), None)
-            .await
-            .unwrap();
+            .await?;
 
         let size = window.inner_size();
 
@@ -48,7 +50,7 @@ impl State {
         // configure surface for the first time
         state.configure_surface();
 
-        state
+        Ok(state)
     }
 
     fn get_window(&self) -> &Window {
@@ -119,22 +121,28 @@ impl State {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct App {
     state: Option<State>,
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // Create window object
+        // create window object
         let window = Arc::new(
             event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
+                .create_window(
+                    Window::default_attributes()
+                        .with_transparent(true)
+                        .with_resizable(false)
+                        .with_title("Bonnie Buddy")
+                        .with_decorations(false)
+                )
+                .expect("Couldn't create window."),
         );
 
         let state = pollster::block_on(State::new(window.clone()));
-        self.state = Some(state);
+        self.state = Some(state.expect("Didn't get state."));
 
         window.request_redraw();
     }
@@ -148,12 +156,11 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 state.render();
-                // Emits a new redraw requested event.
+                // emits a new redraw requested event.
                 state.get_window().request_redraw();
             }
             WindowEvent::Resized(size) => {
-                // Reconfigures the size of the surface. We do not re-render
-                // here as this event is always followed up by redraw request.
+                // reconfigures the size of the surface.
                 state.resize(size);
             }
             _ => (),
