@@ -10,12 +10,12 @@ pub mod bonnie;
 use bonnie::{Bonnie, BonnieState, StateMachine};
 
 #[cfg(target_os = "macos")]
-fn get_composite_mode() -> CompositeAlphaMode {
+pub fn get_composite_mode() -> CompositeAlphaMode {
     CompositeAlphaMode::PostMultiplied
 }
 
 #[cfg(not(target_os = "macos"))]
-fn get_composite_mode() -> CompositeAlphaMode {
+pub fn get_composite_mode() -> CompositeAlphaMode {
     CompositeAlphaMode::default()
 }
 

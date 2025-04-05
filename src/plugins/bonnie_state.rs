@@ -1,16 +1,35 @@
 //! All the state stuff for Bonnie
 
-use crate::{Bonnie, BonnieState, StateMachine, bonnie::BonnieStateDiscriminants};
-use bevy::{prelude::*, utils::Duration, window::PrimaryWindow, winit::WinitWindows};
+use crate::{
+    Bonnie, BonnieState, StateMachine, bonnie::BonnieStateDiscriminants, get_composite_mode,
+};
+use bevy::{
+    input::{ButtonState, mouse::MouseButtonInput},
+    prelude::*,
+    render::{camera::RenderTarget, view::RenderLayers},
+    utils::Duration,
+    window::{PrimaryWindow, WindowRef},
+    winit::WinitWindows,
+};
 use dpi::PhysicalSize;
 use rand::{Rng, prelude::IteratorRandom};
 use strum::IntoEnumIterator;
+
+#[derive(Component)]
+struct PoopWindowMarker;
 
 pub struct BonnieStatePlugin;
 
 impl Plugin for BonnieStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (state_transition, state_behaviours));
+        app.add_systems(
+            Update,
+            (
+                state_transition,
+                state_behaviours,
+                close_poop_window_on_click,
+            ),
+        );
     }
 }
 
@@ -47,6 +66,7 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
 
             BonnieState::Walking((x_to as i32, y_to as i32).into())
         }
+        BonnieStateDiscriminants::Pooping => BonnieState::Pooping,
     }
 }
 
@@ -105,6 +125,8 @@ fn state_behaviours(
     mut bonnie_query: Query<&mut Bonnie, With<Sprite>>,
     mut machine_query: Query<&mut StateMachine>,
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     // get the state machine
     let mut machine = machine_query
@@ -173,6 +195,64 @@ fn state_behaviours(
                 // set new window position
                 window.position = WindowPosition::At(current_pos + move_vec);
             }
+            BonnieState::Pooping => {
+                let poop_window = commands
+                    .spawn((
+                        Window {
+                            transparent: true,
+                            composite_alpha_mode: get_composite_mode(),
+                            decorations: false,
+                            resizable: false,
+                            has_shadow: false,
+                            titlebar_shown: false,
+                            titlebar_transparent: false,
+                            titlebar_show_buttons: false,
+                            titlebar_show_title: false,
+                            title: "Poop!".to_string(),
+                            name: Some("bonnie.buddy".into()),
+                            resolution: (10.0, 10.0).into(),
+                            position: window.position,
+                            ..default()
+                        },
+                        PoopWindowMarker,
+                    ))
+                    .id();
+
+                commands.spawn((
+                    #[allow(deprecated)]
+                    Camera2dBundle {
+                        camera: Camera {
+                            target: RenderTarget::Window(WindowRef::Entity(poop_window)),
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    RenderLayers::layer(42),
+                ));
+
+                let poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
+
+                commands.spawn((poop_sprite, RenderLayers::layer(42)));
+
+                // make timer finish to change state
+                let remaining = machine.timer.remaining();
+                machine.timer.tick(remaining);
+            }
+        }
+    }
+}
+
+fn close_poop_window_on_click(
+    mut commands: Commands,
+    mut mouse_button_events: EventReader<MouseButtonInput>,
+    poop_windows: Query<(), With<PoopWindowMarker>>,
+) {
+    for event in mouse_button_events.read() {
+        if event.button == MouseButton::Left
+            && event.state == ButtonState::Pressed
+            && poop_windows.get(event.window).is_ok()
+        {
+            commands.entity(event.window).despawn_recursive();
         }
     }
 }
