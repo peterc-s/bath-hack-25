@@ -9,7 +9,7 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, view::RenderLayers},
     utils::Duration,
-    window::{PrimaryWindow, WindowLevel, WindowRef},
+    window::{PresentMode, PrimaryWindow, WindowLevel, WindowRef},
     winit::WinitWindows,
 };
 use dpi::PhysicalSize;
@@ -247,6 +247,7 @@ fn state_behaviours(
                                 max_width: 40.0,
                                 max_height: 40.0,
                             },
+                            present_mode: PresentMode::AutoNoVsync,
                             window_level: WindowLevel::AlwaysOnTop,
                             position: window.position,
                             ..default()
