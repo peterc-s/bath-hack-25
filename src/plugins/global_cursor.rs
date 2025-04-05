@@ -14,6 +14,20 @@ impl Plugin for GlobalCursorPlugin {
 #[derive(Resource, Default, Debug)]
 pub struct GlobalCursorPosition(pub Option<Vec2>);
 
+#[cfg(target_os = "macos")]
+fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
+    use core_graphics::display::{CGDisplay, CGMainDisplayID};
+    use core_graphics::event::CGEvent;
+
+    let main_display = unsafe { CGDisplay::new(CGMainDisplayID()) };
+    let screen_height = main_display.pixels_high() as f64;
+
+    let point = CGEvent::mouse_location();
+
+    global_pos.0 = Some(Vec2::new(point.x as f32, point.y as f32));
+}
+
+#[cfg(not(target_os = "macos"))]
 fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
     let enigo = Enigo::new(&Settings::default()).expect("Couldn't make Enigo.");
 
