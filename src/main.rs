@@ -1,7 +1,13 @@
+use std::time::Duration;
+
 use bevy::{prelude::*, window::CompositeAlphaMode};
 
 mod plugins;
+use plugins::bonnie_state;
 use plugins::control;
+
+pub mod bonnie;
+use bonnie::{Bonnie, BonnieState, StateMachine};
 
 #[cfg(target_os = "macos")]
 fn get_composite_mode() -> CompositeAlphaMode {
@@ -38,6 +44,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
         )
         .add_plugins(control::BonnieControlPlugin)
+        .add_plugins(bonnie_state::BonnieStatePlugin)
         .insert_resource(ClearColor(Color::NONE))
         .add_systems(Startup, setup)
         .run();
@@ -50,5 +57,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     bonnie_sprite.custom_size = Some(Vec2::new(100.0, 100.0));
 
-    commands.spawn(bonnie_sprite);
+    commands.spawn((
+        Bonnie::default(),
+        Name::new("Bonnie"),
+        StateMachine {
+            timer: Timer::new(Duration::from_secs_f32(2.0), TimerMode::Once),
+            can_change: true,
+        },
+        bonnie_sprite,
+    ));
 }

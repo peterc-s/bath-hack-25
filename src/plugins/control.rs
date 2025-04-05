@@ -1,3 +1,7 @@
+//! Keyboard controls for debugging.
+//!
+//! Arrow keys move the window, q will quit.
+
 use bevy::{prelude::*, window::PrimaryWindow};
 
 pub struct BonnieControlPlugin;
