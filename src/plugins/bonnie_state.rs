@@ -1,3 +1,5 @@
+//! All the state stuff for Bonnie
+
 use crate::{Bonnie, BonnieState, StateMachine, bonnie::BonnieStateDiscriminants};
 use bevy::{prelude::*, utils::Duration, window::PrimaryWindow, winit::WinitWindows};
 use dpi::PhysicalSize;
@@ -15,11 +17,14 @@ impl Plugin for BonnieStatePlugin {
 fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> BonnieState {
     let mut rng = rand::rng();
 
+    // randomly choose enum discriminant
+    // that isn't the current one.
     let disc = BonnieStateDiscriminants::iter()
         .filter(|d| d != &current_state.into())
         .choose(&mut rng)
         .unwrap_or(BonnieState::Idle.into());
 
+    // return an actual enum variant
     match disc {
         BonnieStateDiscriminants::Idle => BonnieState::Idle,
         BonnieStateDiscriminants::Walking => {
@@ -40,24 +45,31 @@ fn state_transition(
 ) {
     let mut rng = rand::rng();
 
+    // get bonnie and the state machine from the query
     for (mut bonnie, mut machine) in &mut query {
+        // tick the timer
+        machine.timer.tick(time.delta());
+
+        // skip if the machine is blocked
         if !machine.can_change {
             continue;
         }
 
-        machine.timer.tick(time.delta());
-
-        if machine.timer.just_finished() {
+        // if the timer just finished
+        if machine.timer.finished() {
+            // get the monitor
             if let Some(monitor) = window_query
                 .get_single()
                 .ok()
                 .and_then(|entity| winit_windows.get_window(entity))
                 .and_then(|winit_window| winit_window.current_monitor())
             {
+                // select a random bonnie state to switch to
                 let new_state = random_state(bonnie.state, monitor.size());
 
                 info!("Changing state from {:?} to {:?}.", bonnie.state, new_state);
 
+                // switch to the selected state
                 bonnie.state = new_state;
 
                 // block on walking, unblocks when at position
@@ -65,6 +77,7 @@ fn state_transition(
                     machine.block()
                 }
 
+                // reset timer
                 machine
                     .timer
                     .set_duration(Duration::from_secs_f32(rng.random_range(1.0..4.0)));
@@ -79,14 +92,19 @@ fn state_behaviours(
     mut machine_query: Query<&mut StateMachine>,
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
 ) {
+    // get the state machine
     let mut machine = machine_query
         .get_single_mut()
         .expect("No state machine found.");
+
+    // get the window
     let mut window = window_query
         .get_single_mut()
         .expect("No primary window found.");
 
+    // get bonnie
     for bonnie in &mut bonnie_query {
+        // do stuff based on the current bonnie state
         match bonnie.state {
             BonnieState::Idle => {
                 // do idle stuff
@@ -112,9 +130,14 @@ fn state_behaviours(
                     move_size = len;
                 }
 
-                // unblock if at the point to walk to
+                // unblock and make change state if at the point to walk to
                 if move_size == 0 {
                     machine.unblock();
+
+                    // make timer finish to change state
+                    let remaining = machine.timer.remaining();
+                    machine.timer.tick(remaining);
+
                     continue;
                 }
 
