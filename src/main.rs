@@ -3,6 +3,16 @@ use bevy::{
     window::{CompositeAlphaMode, PrimaryWindow},
 };
 
+#[cfg(target_os = "macos")]
+fn get_composite_mode() -> CompositeAlphaMode {
+    CompositeAlphaMode::PostMultiplied
+}
+
+#[cfg(not(target_os = "macos"))]
+fn get_composite_mode() -> CompositeAlphaMode {
+    CompositeAlphaMode::default()
+}
+
 fn main() {
     App::new()
         .add_plugins(
@@ -10,7 +20,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         transparent: true,
-                        composite_alpha_mode: CompositeAlphaMode::PostMultiplied,
+                        composite_alpha_mode: get_composite_mode(),
                         decorations: false,
                         resizable: false,
                         has_shadow: false,
@@ -20,7 +30,7 @@ fn main() {
                         titlebar_show_title: false,
                         title: "Bonnie Buddy".to_string(),
                         name: Some("bonnie.buddy".into()),
-                        resolution: (100.0, 100.0).into(),
+                        resolution: (50.0, 50.0).into(),
                         ..default()
                     }),
                     ..default()
