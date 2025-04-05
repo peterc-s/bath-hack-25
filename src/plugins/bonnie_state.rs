@@ -120,12 +120,50 @@ fn state_transition(
     }
 }
 
+macro_rules! move_towards_target {
+    ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr) => {{
+        let current_pos = match $window.position {
+            WindowPosition::At(pos) => pos,
+            _ => IVec2::new(100, 100),
+        };
+
+        let diff = $target_pos - current_pos;
+        let len = diff.length_squared().isqrt();
+        let mut move_size = $move_speed;
+
+        if len < move_size {
+            move_size = len;
+        }
+
+        if move_size == 0 {
+            $state_machine.unblock();
+            let remaining = $state_machine.timer.remaining();
+            $state_machine.timer.tick(remaining);
+        } else {
+            let move_vec = if len > 0 {
+                let x_norm = (diff.x as f64 / len as f64) * move_size as f64;
+                let y_norm = (diff.y as f64 / len as f64) * move_size as f64;
+                IVec2::new(x_norm.round() as i32, y_norm.round() as i32)
+            } else {
+                diff
+            };
+
+            $window.position = WindowPosition::At(current_pos + move_vec);
+        }
+    }};
+
+    ($window:expr, $target_pos:expr, $state_machine:expr) => {
+        move_towards_target!($window, $state_machine, $target_pos, 5)
+    };
+}
+
 fn state_behaviours(
     mut bonnie_query: Query<&mut Bonnie, With<Sprite>>,
     mut machine_query: Query<&mut StateMachine>,
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    cursor_pos: Res<GlobalCursorPosition>,
 ) {
     // get the state machine
     let mut machine = machine_query
@@ -145,54 +183,7 @@ fn state_behaviours(
                 // do idle stuff
             }
             BonnieState::Walking(to) => {
-                // get current window position
-                let current_pos = match window.position {
-                    WindowPosition::At(pos) => pos,
-                    _ => IVec2::new(100, 100),
-                };
-
-                // default move size
-                let mut move_size = 5;
-
-                // get vector diff
-                let diff = to - current_pos;
-                // length of vector
-                let len = diff.length_squared().isqrt();
-
-                // if the move size is less than the length
-                // use the length instead
-                if len < move_size {
-                    move_size = len;
-                }
-
-                // unblock and make change state if at the point to walk to
-                if move_size == 0 {
-                    machine.unblock();
-
-                    // make timer finish to change state
-                    let remaining = machine.timer.remaining();
-                    machine.timer.tick(remaining);
-
-                    continue;
-                }
-
-                // calculate the move vector
-                let move_vec = if len >= 0 {
-                    // get vector components as floats
-                    let x_float = diff[0] as f64;
-                    let y_float = diff[1] as f64;
-
-                    // normalise and multiply by move size
-                    let x_norm = (x_float / len as f64) * move_size as f64;
-                    let y_norm = (y_float / len as f64) * move_size as f64;
-
-                    IVec2::new(x_norm as i32, y_norm as i32)
-                } else {
-                    diff
-                };
-
-                // set new window position
-                window.position = WindowPosition::At(current_pos + move_vec);
+                move_towards_target!(window, machine, to, 5);
             }
             BonnieState::Pooping => {
                 // create the window with a poop window marker
@@ -244,7 +235,11 @@ fn state_behaviours(
                 machine.timer.tick(remaining);
             }
             BonnieState::Chasing => {
-                todo!()
+                // get cursor position
+                if let Some(to) = cursor_pos.0 {
+                    let to = to.as_ivec2() - IVec2::new(150, 150);
+                    move_towards_target!(window, machine, to, 10);
+                }
             }
         }
     }
