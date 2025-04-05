@@ -233,7 +233,8 @@ fn state_behaviours(
                 ));
 
                 // get the sprite
-                let poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
+                let mut poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
+                poop_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
 
                 // spawn the sprite on the render layer 1
                 commands.spawn((poop_sprite, RenderLayers::layer(42)));
