@@ -72,7 +72,7 @@ fn get_resolution_based_speed(screen_size: PhysicalSize<u32>, base_speed: f32) -
     let speed_ratio = 0.15;
 
     // minimum speed for very small screens
-    diagonal * speed_ratio + base_speed
+    diagonal * speed_ratio * base_speed
 }
 
 macro_rules! move_bonnie_to {
@@ -230,7 +230,7 @@ fn state_behaviours(
                 // do idle stuff
             }
             BonnieState::Walking(to) => {
-                let speed = get_resolution_based_speed(monitor_size, 25.0);
+                let speed = get_resolution_based_speed(monitor_size, 1.0);
                 move_bonnie_to!(window, machine, to, speed, time.delta_secs_f64());
             }
             BonnieState::Pooping => {
@@ -290,7 +290,7 @@ fn state_behaviours(
                 machine.timer.tick(remaining);
             }
             BonnieState::Chasing => {
-                let speed = get_resolution_based_speed(monitor_size, 200.0);
+                let speed = get_resolution_based_speed(monitor_size, 2.0);
                 // get cursor position
                 if let Some(to) = cursor_pos.0 {
                     let to = to.as_ivec2() - IVec2::new(90, 147);
