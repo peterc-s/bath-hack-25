@@ -180,8 +180,10 @@ fn state_transition(
 
                 // block on walking, unblocks and makes
                 // timer finish when at correct coordinate
-                if let BonnieState::Walking(_) = bonnie.state {
-                    machine.block()
+                match bonnie.state {
+                    BonnieState::Walking(_) => machine.block(),
+                    BonnieState::Chasing => machine.block(),
+                    _ => {}
                 }
 
                 // reset timer
