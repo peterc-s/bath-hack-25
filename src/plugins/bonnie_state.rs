@@ -72,7 +72,8 @@ fn state_transition(
                 // switch to the selected state
                 bonnie.state = new_state;
 
-                // block on walking, unblocks when at position
+                // block on walking, unblocks and makes
+                // timer finish when at correct coordinate
                 if let BonnieState::Walking(_) = bonnie.state {
                     machine.block()
                 }
