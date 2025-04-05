@@ -64,7 +64,7 @@ fn close_poop_window_on_click(
 // Movement
 ///////
 
-macro_rules! move_towards_target {
+macro_rules! move_bonnie_to {
     ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr) => {{
         let current_pos = match $window.position {
             WindowPosition::At(pos) => pos,
@@ -220,7 +220,7 @@ fn state_behaviours(
                 // do idle stuff
             }
             BonnieState::Walking(to) => {
-                move_towards_target!(window, machine, to, 5);
+                move_bonnie_to!(window, machine, to, 5);
             }
             BonnieState::Pooping => {
                 // create the window with a poop window marker
@@ -275,7 +275,7 @@ fn state_behaviours(
                 // get cursor position
                 if let Some(to) = cursor_pos.0 {
                     let to = to.as_ivec2() - IVec2::new(150, 150);
-                    move_towards_target!(window, machine, to, 10);
+                    move_bonnie_to!(window, machine, to, 10);
                 }
             }
         }
