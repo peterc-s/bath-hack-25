@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+wgpu = { version = "24.0.3", features = ["vulkan-portability"] }
+winit = "0.30.9"
