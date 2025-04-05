@@ -240,7 +240,13 @@ fn state_behaviours(
                             titlebar_show_title: false,
                             title: "Poop!".to_string(),
                             name: Some("bonnie.buddy".into()),
-                            resolution: (10.0, 10.0).into(),
+                            resolution: (40.0, 40.0).into(),
+                            resize_constraints: WindowResizeConstraints {
+                                min_width: 40.0,
+                                min_height: 40.0,
+                                max_width: 40.0,
+                                max_height: 40.0,
+                            },
                             window_level: WindowLevel::AlwaysOnTop,
                             position: window.position,
                             ..default()
@@ -276,7 +282,7 @@ fn state_behaviours(
             BonnieState::Chasing => {
                 // get cursor position
                 if let Some(to) = cursor_pos.0 {
-                    let to = to.as_ivec2() - IVec2::new(150, 150);
+                    let to = to.as_ivec2() - IVec2::new(90, 147);
                     move_bonnie_to!(window, machine, to, 10);
                 }
             }

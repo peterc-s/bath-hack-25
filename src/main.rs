@@ -38,7 +38,13 @@ fn main() {
                         titlebar_show_title: false,
                         title: "Bonnie Buddy".to_string(),
                         name: Some("bonnie.buddy".into()),
-                        resolution: (50.0, 50.0).into(),
+                        resolution: (100.0, 100.0).into(),
+                        resize_constraints: WindowResizeConstraints {
+                            min_width: 100.0,
+                            min_height: 100.0,
+                            max_width: 100.0,
+                            max_height: 100.0,
+                        },
                         window_level: WindowLevel::AlwaysOnTop,
                         ..default()
                     }),
