@@ -1,4 +1,7 @@
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{
+    prelude::*,
+    window::{CompositeAlphaMode, PrimaryWindow},
+};
 
 fn main() {
     App::new()
@@ -7,6 +10,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         transparent: true,
+                        composite_alpha_mode: CompositeAlphaMode::PostMultiplied,
                         decorations: false,
                         resizable: false,
                         has_shadow: false,
@@ -21,27 +25,22 @@ fn main() {
                     }),
                     ..default()
                 })
-                .set(ImagePlugin::default_nearest())
+                .set(ImagePlugin::default_nearest()),
         )
         .insert_resource(ClearColor(Color::NONE))
         .add_systems(Startup, setup)
-        .add_systems(Update, move_window)
-        .add_systems(Update, quit_on_q)
+        .add_systems(Update, (move_window, quit_on_q))
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 
-    let mut bonnie_sprite = Sprite::from_image(
-        asset_server.load("bonnietest.png")
-    );
+    let mut bonnie_sprite = Sprite::from_image(asset_server.load("bonnietest.png"));
 
     bonnie_sprite.custom_size = Some(Vec2::new(100.0, 100.0));
 
-    commands.spawn(
-        bonnie_sprite
-    );
+    commands.spawn(bonnie_sprite);
 }
 
 fn move_window(
@@ -52,11 +51,11 @@ fn move_window(
     if let Ok(mut window) = window_query.get_single_mut() {
         // pixels/frame
         let move_speed = 10;
-        
+
         // get current window position
         let current_pos = match window.position {
             WindowPosition::At(pos) => pos,
-            _ => IVec2::new(100, 100)
+            _ => IVec2::new(100, 100),
         };
 
         // get new position
