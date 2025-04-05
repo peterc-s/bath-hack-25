@@ -17,14 +17,25 @@ pub struct GlobalCursorPosition(pub Option<Vec2>);
 #[cfg(target_os = "macos")]
 fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
     use core_graphics::display::{CGDisplay, CGMainDisplayID};
-    use core_graphics::event::CGEvent;
+    use core_graphics::event::{CGEvent, CGEventType};
+    use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
+    // Get mouse location in screen coordinates
+    let point = unsafe {
+        let event_source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+            .expect("Failed to create event source");
+        CGEvent::new(event_source).location()
+    };
+
+    // Get display dimensions for coordinate conversion
     let main_display = unsafe { CGDisplay::new(CGMainDisplayID()) };
-    let screen_height = main_display.pixels_high() as f64;
+    let screen_height = main_display.pixels_high() as f32;
 
-    let point = CGEvent::mouse_location();
-
-    global_pos.0 = Some(Vec2::new(point.x as f32, point.y as f32));
+    // Convert to top-left origin coordinates
+    global_pos.0 = Some(Vec2::new(
+        point.x as f32,
+        screen_height - point.y as f32, // Flip Y axis
+    ));
 }
 
 #[cfg(not(target_os = "macos"))]
