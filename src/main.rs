@@ -22,6 +22,12 @@ pub fn get_composite_mode() -> CompositeAlphaMode {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        std::env::set_var("PULSE_SERVER", "/run/user/1000/pulse/native");
+        std::env::set_var("ALSA_CONFIG_PATH", "/dev/null");
+    }
+
     App::new()
         .add_plugins(
             DefaultPlugins

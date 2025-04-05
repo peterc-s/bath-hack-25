@@ -65,42 +65,29 @@ fn close_poop_window_on_click(
 ///////
 
 macro_rules! move_bonnie_to {
-    ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr) => {{
+    ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr, $dt:expr) => {{
         let current_pos = match $window.position {
             WindowPosition::At(pos) => pos,
             _ => IVec2::new(100, 100),
         };
 
         let diff = $target_pos - current_pos;
-        let len = diff.length_squared().isqrt();
-        let mut move_size = $move_speed;
+        let len = diff.as_vec2().length();
+        let move_per_frame = ($move_speed as f64 * $dt) as f32;
+        let move_size = move_per_frame.min(len);
 
-        if len < move_size {
-            move_size = len;
-        }
-
-        if move_size == 0 {
+        if len <= move_per_frame {
             $state_machine.unblock();
             let remaining = $state_machine.timer.remaining();
             $state_machine.timer.tick(remaining);
         } else {
-            let move_vec = if len > 0 {
-                let x_norm = (diff.x as f64 / len as f64) * move_size as f64;
-                let y_norm = (diff.y as f64 / len as f64) * move_size as f64;
-                IVec2::new(x_norm.round() as i32, y_norm.round() as i32)
-            } else {
-                diff
-            };
+            let direction = diff.as_vec2().normalize();
+            let move_vec = (direction * move_size).round().as_ivec2();
 
             $window.position = WindowPosition::At(current_pos + move_vec);
         }
     }};
-
-    ($window:expr, $target_pos:expr, $state_machine:expr) => {
-        move_towards_target!($window, $state_machine, $target_pos, 5)
-    };
 }
-
 ///////
 // State
 ///////
@@ -203,6 +190,7 @@ fn state_behaviours(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     cursor_pos: Res<GlobalCursorPosition>,
+    time: Res<Time>,
 ) {
     // get the state machine
     let mut machine = machine_query
@@ -222,7 +210,7 @@ fn state_behaviours(
                 // do idle stuff
             }
             BonnieState::Walking(to) => {
-                move_bonnie_to!(window, machine, to, 5);
+                move_bonnie_to!(window, machine, to, 300.0, time.delta_secs_f64());
             }
             BonnieState::Pooping => {
                 // create the window with a poop window marker
@@ -284,7 +272,7 @@ fn state_behaviours(
                 // get cursor position
                 if let Some(to) = cursor_pos.0 {
                     let to = to.as_ivec2() - IVec2::new(90, 147);
-                    move_bonnie_to!(window, machine, to, 10);
+                    move_bonnie_to!(window, machine, to, 600.0, time.delta_secs_f64());
                 }
             }
         }
