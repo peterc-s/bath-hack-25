@@ -6,6 +6,7 @@ use bevy::{prelude::*, window::CompositeAlphaMode};
 mod plugins;
 use plugins::bonnie_state;
 use plugins::control;
+use plugins::global_cursor;
 
 pub mod bonnie;
 use bonnie::{Bonnie, BonnieState, StateMachine};
@@ -47,6 +48,7 @@ fn main() {
         )
         .add_plugins(control::BonnieControlPlugin)
         .add_plugins(bonnie_state::BonnieStatePlugin)
+        .add_plugins(global_cursor::GlobalCursorPlugin)
         .insert_resource(ClearColor(Color::NONE))
         .add_systems(Startup, setup)
         .run();

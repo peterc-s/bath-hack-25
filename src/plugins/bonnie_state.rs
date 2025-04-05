@@ -2,6 +2,7 @@
 
 use crate::{
     Bonnie, BonnieState, StateMachine, bonnie::BonnieStateDiscriminants, get_composite_mode,
+    global_cursor::GlobalCursorPosition,
 };
 use bevy::{
     input::{ButtonState, mouse::MouseButtonInput},
@@ -15,14 +16,11 @@ use dpi::PhysicalSize;
 use rand::{Rng, prelude::IteratorRandom};
 use strum::IntoEnumIterator;
 
-#[derive(Component)]
-struct PoopWindowMarker;
-
 pub struct BonnieStatePlugin;
 
 impl Plugin for BonnieStatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<GlobalCursorPosition>().add_systems(
             Update,
             (
                 state_transition,
@@ -67,6 +65,7 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
             BonnieState::Walking((x_to as i32, y_to as i32).into())
         }
         BonnieStateDiscriminants::Pooping => BonnieState::Pooping,
+        BonnieStateDiscriminants::Chasing => BonnieState::Chasing,
     }
 }
 
@@ -244,9 +243,15 @@ fn state_behaviours(
                 let remaining = machine.timer.remaining();
                 machine.timer.tick(remaining);
             }
+            BonnieState::Chasing => {
+                todo!()
+            }
         }
     }
 }
+
+#[derive(Component)]
+struct PoopWindowMarker;
 
 fn close_poop_window_on_click(
     mut commands: Commands,
