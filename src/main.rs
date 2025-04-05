@@ -53,7 +53,7 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
-    let mut bonnie_sprite = Sprite::from_image(asset_server.load("bonnietest.png"));
+    let mut bonnie_sprite = Sprite::from_image(asset_server.load("BonNormal.png"));
 
     bonnie_sprite.custom_size = Some(Vec2::new(100.0, 100.0));
 

@@ -23,8 +23,9 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
     match disc {
         BonnieStateDiscriminants::Idle => BonnieState::Idle,
         BonnieStateDiscriminants::Walking => {
-            let x_to = rng.random_range(0..screen_res.width);
-            let y_to = rng.random_range(0..screen_res.height);
+            // randomly generate a coordinate to go to with some buffer
+            let x_to = rng.random_range(150..screen_res.width - 150);
+            let y_to = rng.random_range(150..screen_res.height - 150);
 
             BonnieState::Walking((x_to as i32, y_to as i32).into())
         }
@@ -66,7 +67,7 @@ fn state_transition(
 
                 machine
                     .timer
-                    .set_duration(Duration::from_secs_f32(rng.random_range(2.0..5.0)));
+                    .set_duration(Duration::from_secs_f32(rng.random_range(1.0..4.0)));
                 machine.timer.reset();
             }
         }
