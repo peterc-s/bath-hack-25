@@ -196,6 +196,7 @@ fn state_behaviours(
                 window.position = WindowPosition::At(current_pos + move_vec);
             }
             BonnieState::Pooping => {
+                // create the window with a poop window marker
                 let poop_window = commands
                     .spawn((
                         Window {
@@ -218,6 +219,7 @@ fn state_behaviours(
                     ))
                     .id();
 
+                // spawn a camera2d on render layer 1
                 commands.spawn((
                     #[allow(deprecated)]
                     Camera2dBundle {
@@ -230,8 +232,10 @@ fn state_behaviours(
                     RenderLayers::layer(42),
                 ));
 
+                // get the sprite
                 let poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
 
+                // spawn the sprite on the render layer 1
                 commands.spawn((poop_sprite, RenderLayers::layer(42)));
 
                 // make timer finish to change state
@@ -247,11 +251,14 @@ fn close_poop_window_on_click(
     mut mouse_button_events: EventReader<MouseButtonInput>,
     poop_windows: Query<(), With<PoopWindowMarker>>,
 ) {
+    // get mouse events
     for event in mouse_button_events.read() {
+        // if left click and is on a poop window
         if event.button == MouseButton::Left
             && event.state == ButtonState::Pressed
             && poop_windows.get(event.window).is_ok()
         {
+            // despawn the poop window
             commands.entity(event.window).despawn_recursive();
         }
     }
