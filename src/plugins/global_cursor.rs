@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use enigo::{Enigo, Mouse, Settings};
+use mouse_position::mouse_position::Mouse;
 
 pub struct GlobalCursorPlugin;
 
@@ -29,10 +29,10 @@ fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
 
 #[cfg(not(target_os = "macos"))]
 fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
-    let enigo = Enigo::new(&Settings::default()).expect("Couldn't make Enigo.");
+    let mouse = Mouse::get_mouse_position();
 
-    if let Ok(position) = enigo.location() {
-        global_pos.0 = Some(Vec2::new(position.0 as f32, position.1 as f32));
+    if let Mouse::Position { x, y } = mouse {
+        global_pos.0 = Some(Vec2::new(x as f32, y as f32));
     }
 }
 

@@ -6,8 +6,8 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.15.3", features = ["dynamic_linking"] }
 dpi = "0.1.1"
-enigo = "0.3.0"
 log = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
+mouse_position = "0.1.4"
 rand = "0.9.0"
 strum = { version = "0.27.1", features = ["derive"] }
 
