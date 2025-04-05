@@ -64,6 +64,17 @@ fn close_poop_window_on_click(
 // Movement
 ///////
 
+fn get_resolution_based_speed(screen_size: PhysicalSize<u32>, base_speed: f32) -> f32 {
+    // calculate diagonal in pixels
+    let diagonal = ((screen_size.width.pow(2) + screen_size.height.pow(2)) as f32).sqrt();
+
+    // convert base speed (percentage of screen diagonal per second)
+    let speed_ratio = 0.15;
+
+    // minimum speed for very small screens
+    diagonal * speed_ratio + base_speed
+}
+
 macro_rules! move_bonnie_to {
     ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr, $dt:expr) => {{
         let current_pos = match $window.position {
@@ -187,7 +198,9 @@ fn state_behaviours(
     mut bonnie_query: Query<&mut Bonnie, With<Sprite>>,
     mut machine_query: Query<&mut StateMachine>,
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
+    window_entity_query: Query<Entity, With<PrimaryWindow>>,
     mut commands: Commands,
+    winit_windows: NonSend<WinitWindows>,
     asset_server: Res<AssetServer>,
     cursor_pos: Res<GlobalCursorPosition>,
     time: Res<Time>,
@@ -204,13 +217,21 @@ fn state_behaviours(
 
     // get bonnie
     for bonnie in &mut bonnie_query {
+        let monitor_size = window_entity_query
+            .get_single()
+            .ok()
+            .and_then(|entity| winit_windows.get_window(entity))
+            .and_then(|w| w.current_monitor())
+            .map(|m| m.size())
+            .unwrap_or(PhysicalSize::new(1920, 1080));
         // do stuff based on the current bonnie state
         match bonnie.state {
             BonnieState::Idle => {
                 // do idle stuff
             }
             BonnieState::Walking(to) => {
-                move_bonnie_to!(window, machine, to, 300.0, time.delta_secs_f64());
+                let speed = get_resolution_based_speed(monitor_size, 25.0);
+                move_bonnie_to!(window, machine, to, speed, time.delta_secs_f64());
             }
             BonnieState::Pooping => {
                 // create the window with a poop window marker
@@ -269,10 +290,11 @@ fn state_behaviours(
                 machine.timer.tick(remaining);
             }
             BonnieState::Chasing => {
+                let speed = get_resolution_based_speed(monitor_size, 200.0);
                 // get cursor position
                 if let Some(to) = cursor_pos.0 {
                     let to = to.as_ivec2() - IVec2::new(90, 147);
-                    move_bonnie_to!(window, machine, to, 600.0, time.delta_secs_f64());
+                    move_bonnie_to!(window, machine, to, speed, time.delta_secs_f64());
                 }
             }
         }
