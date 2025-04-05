@@ -16,6 +16,10 @@ use dpi::PhysicalSize;
 use rand::{Rng, prelude::IteratorRandom};
 use strum::IntoEnumIterator;
 
+///////
+// Plugin
+///////
+
 pub struct BonnieStatePlugin;
 
 impl Plugin for BonnieStatePlugin {
@@ -30,6 +34,76 @@ impl Plugin for BonnieStatePlugin {
         );
     }
 }
+
+///////
+// Pooping
+///////
+
+#[derive(Component)]
+struct PoopWindowMarker;
+
+fn close_poop_window_on_click(
+    mut commands: Commands,
+    mut mouse_button_events: EventReader<MouseButtonInput>,
+    poop_windows: Query<(), With<PoopWindowMarker>>,
+) {
+    // get mouse events
+    for event in mouse_button_events.read() {
+        // if left click and is on a poop window
+        if event.button == MouseButton::Left
+            && event.state == ButtonState::Pressed
+            && poop_windows.get(event.window).is_ok()
+        {
+            // despawn the poop window
+            commands.entity(event.window).despawn_recursive();
+        }
+    }
+}
+
+///////
+// Movement
+///////
+
+macro_rules! move_towards_target {
+    ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr) => {{
+        let current_pos = match $window.position {
+            WindowPosition::At(pos) => pos,
+            _ => IVec2::new(100, 100),
+        };
+
+        let diff = $target_pos - current_pos;
+        let len = diff.length_squared().isqrt();
+        let mut move_size = $move_speed;
+
+        if len < move_size {
+            move_size = len;
+        }
+
+        if move_size == 0 {
+            $state_machine.unblock();
+            let remaining = $state_machine.timer.remaining();
+            $state_machine.timer.tick(remaining);
+        } else {
+            let move_vec = if len > 0 {
+                let x_norm = (diff.x as f64 / len as f64) * move_size as f64;
+                let y_norm = (diff.y as f64 / len as f64) * move_size as f64;
+                IVec2::new(x_norm.round() as i32, y_norm.round() as i32)
+            } else {
+                diff
+            };
+
+            $window.position = WindowPosition::At(current_pos + move_vec);
+        }
+    }};
+
+    ($window:expr, $target_pos:expr, $state_machine:expr) => {
+        move_towards_target!($window, $state_machine, $target_pos, 5)
+    };
+}
+
+///////
+// State
+///////
 
 fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> BonnieState {
     let mut rng = rand::rng();
@@ -120,43 +194,6 @@ fn state_transition(
     }
 }
 
-macro_rules! move_towards_target {
-    ($window:expr, $state_machine:expr, $target_pos:expr, $move_speed:expr) => {{
-        let current_pos = match $window.position {
-            WindowPosition::At(pos) => pos,
-            _ => IVec2::new(100, 100),
-        };
-
-        let diff = $target_pos - current_pos;
-        let len = diff.length_squared().isqrt();
-        let mut move_size = $move_speed;
-
-        if len < move_size {
-            move_size = len;
-        }
-
-        if move_size == 0 {
-            $state_machine.unblock();
-            let remaining = $state_machine.timer.remaining();
-            $state_machine.timer.tick(remaining);
-        } else {
-            let move_vec = if len > 0 {
-                let x_norm = (diff.x as f64 / len as f64) * move_size as f64;
-                let y_norm = (diff.y as f64 / len as f64) * move_size as f64;
-                IVec2::new(x_norm.round() as i32, y_norm.round() as i32)
-            } else {
-                diff
-            };
-
-            $window.position = WindowPosition::At(current_pos + move_vec);
-        }
-    }};
-
-    ($window:expr, $target_pos:expr, $state_machine:expr) => {
-        move_towards_target!($window, $state_machine, $target_pos, 5)
-    };
-}
-
 fn state_behaviours(
     mut bonnie_query: Query<&mut Bonnie, With<Sprite>>,
     mut machine_query: Query<&mut StateMachine>,
@@ -241,27 +278,6 @@ fn state_behaviours(
                     move_towards_target!(window, machine, to, 10);
                 }
             }
-        }
-    }
-}
-
-#[derive(Component)]
-struct PoopWindowMarker;
-
-fn close_poop_window_on_click(
-    mut commands: Commands,
-    mut mouse_button_events: EventReader<MouseButtonInput>,
-    poop_windows: Query<(), With<PoopWindowMarker>>,
-) {
-    // get mouse events
-    for event in mouse_button_events.read() {
-        // if left click and is on a poop window
-        if event.button == MouseButton::Left
-            && event.state == ButtonState::Pressed
-            && poop_windows.get(event.window).is_ok()
-        {
-            // despawn the poop window
-            commands.entity(event.window).despawn_recursive();
         }
     }
 }
