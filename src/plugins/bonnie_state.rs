@@ -38,11 +38,11 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
             };
 
             let y_min = 150;
-            let y_max = screen_res.width.saturating_sub(150);
+            let y_max = screen_res.height.saturating_sub(150);
             let y_to = if y_max > y_min {
                 rng.random_range(y_min..y_max)
             } else {
-                rng.random_range(0..screen_res.width)
+                rng.random_range(0..screen_res.height)
             };
 
             BonnieState::Walking((x_to as i32, y_to as i32).into())
