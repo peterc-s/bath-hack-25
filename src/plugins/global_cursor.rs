@@ -19,7 +19,8 @@ fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
     let mouse = Mouse::get_mouse_position();
 
     if let Mouse::Position { x, y } = mouse {
-        global_pos.0 = Some(Vec2::new(x * 2 as f32, y * 2 as f32));
+        // hack solution
+        global_pos.0 = Some(Vec2::new((x * 2) as f32, (y * 2) as f32));
     }
 }
 

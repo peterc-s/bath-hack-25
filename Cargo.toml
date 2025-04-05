@@ -11,9 +11,6 @@ mouse_position = "0.1.4"
 rand = "0.9.0"
 strum = { version = "0.27.1", features = ["derive"] }
 
-[target.'cfg(target_os = "macos")'.dependencies]
-core-graphics = "0.24.0"
-
 [profile.dev]
 opt-level = 1
 
