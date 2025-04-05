@@ -1,15 +1,17 @@
 use bevy::prelude::*;
+use strum::{EnumDiscriminants, EnumIter};
 
 #[derive(Component, Default)]
 pub struct Bonnie {
     pub state: BonnieState,
 }
 
-#[derive(Component, Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Default, Debug, Clone, Copy, PartialEq, EnumIter, EnumDiscriminants)]
+#[strum_discriminants(derive(EnumIter))]
 pub enum BonnieState {
     #[default]
     Idle,
-    Walking,
+    Walking(IVec2),
 }
 
 #[derive(Component, Debug)]
