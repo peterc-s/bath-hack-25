@@ -29,8 +29,21 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
         BonnieStateDiscriminants::Idle => BonnieState::Idle,
         BonnieStateDiscriminants::Walking => {
             // randomly generate a coordinate to go to with some buffer
-            let x_to = rng.random_range(150..screen_res.width - 150);
-            let y_to = rng.random_range(150..screen_res.height - 150);
+            let x_min = 150;
+            let x_max = screen_res.width.saturating_sub(150);
+            let x_to = if x_max > x_min {
+                rng.random_range(x_min..x_max)
+            } else {
+                rng.random_range(0..screen_res.width)
+            };
+
+            let y_min = 150;
+            let y_max = screen_res.height.saturating_sub(150);
+            let y_to = if y_max > y_min {
+                rng.random_range(y_min..y_max)
+            } else {
+                rng.random_range(0..screen_res.height)
+            };
 
             BonnieState::Walking((x_to as i32, y_to as i32).into())
         }
