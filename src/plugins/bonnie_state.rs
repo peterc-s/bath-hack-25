@@ -8,7 +8,7 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, view::RenderLayers},
     utils::Duration,
-    window::{PrimaryWindow, WindowRef},
+    window::{PrimaryWindow, WindowLevel, WindowRef},
     winit::WinitWindows,
 };
 use dpi::PhysicalSize;
@@ -212,6 +212,7 @@ fn state_behaviours(
                             title: "Poop!".to_string(),
                             name: Some("bonnie.buddy".into()),
                             resolution: (10.0, 10.0).into(),
+                            window_level: WindowLevel::AlwaysOnTop,
                             position: window.position,
                             ..default()
                         },

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use bevy::window::WindowLevel;
 use bevy::{prelude::*, window::CompositeAlphaMode};
 
 mod plugins;
@@ -37,6 +38,7 @@ fn main() {
                         title: "Bonnie Buddy".to_string(),
                         name: Some("bonnie.buddy".into()),
                         resolution: (50.0, 50.0).into(),
+                        window_level: WindowLevel::AlwaysOnTop,
                         ..default()
                     }),
                     ..default()
