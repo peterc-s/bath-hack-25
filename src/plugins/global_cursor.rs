@@ -33,6 +33,7 @@ fn track_global_cursor_position(mut global_pos: ResMut<GlobalCursorPosition>) {
     }
 }
 
+#[allow(dead_code)]
 fn print_global_cursor_position(global_pos: Res<GlobalCursorPosition>) {
     info!("Position: {:?}", global_pos.0);
 }
