@@ -112,6 +112,7 @@ impl Plugin for BonnieStatePlugin {
                     handle_teaching,
                     handle_chasing,
                     update_birds,
+                    handle_idling,
                 )
                     .chain(),
             )
@@ -124,7 +125,10 @@ impl Plugin for BonnieStatePlugin {
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping)
             .add_systems(OnEnter(BonnieState::Bird), setup_bird)
             .add_systems(OnEnter(BonnieState::Scratch), create_scratch)
+            .add_systems(OnEnter(BonnieState::Idle), (block_state, setup_idling))
+            .add_systems(OnExit(BonnieState::Idle), exit_idling)
             .add_systems(OnExit(BonnieState::Chasing), exit_chase);
+        
     }
 }
 
@@ -228,8 +232,10 @@ fn random_state(
     next_state
 }
 
-fn block_state(mut machine: Query<&mut StateMachine>) {
-    machine.single_mut().block();
+fn block_state(mut machine_query: Query<&mut StateMachine>) {
+    if let Ok(mut machine) = machine_query.get_single_mut() {
+        machine.block();
+    }
 }
 
 ///////
@@ -290,6 +296,7 @@ fn handle_window_closing<T: Component>(
         }
     }
 }
+
 
 ///////
 // Movement system
@@ -357,6 +364,60 @@ fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) 
 ///////
 // State-Specific Behaviour
 ///////
+
+/////// Idling 
+fn setup_idling(
+    mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>,
+    asset_server: Res<AssetServer>,
+) {
+    let bonnie_asset = asset_server.load("BonSleep.png");
+
+    for (_, mut sprite) in &mut bonnie_query {
+        sprite.image = bonnie_asset.clone();
+    }
+}
+
+fn handle_idling(
+    mut machine: Query<&mut StateMachine>,
+    bonnie_query: Query<&mut Bonnie>,
+    global_cursor_pos: Res<GlobalCursorPosition>,
+    window_query: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    let bonnie = bonnie_query.get_single().expect("Failed to get Bonnie.");
+    if let BonnieState::Idle = bonnie.state {
+        // get window and machine
+        let window = window_query.single();
+        let mut machine = machine.single_mut();
+
+        // if cursor near bonnie, wake her up
+        // get global cursor pos
+        if let Some(cursor_pos) = global_cursor_pos.0 {
+            // get bonnie position
+            if let WindowPosition::At(bonnie_pos) = window.position {
+                let diff = (bonnie_pos + IVec2::new(90, 147)).as_vec2() - cursor_pos;
+                let dist = diff.length();
+
+                // if cursor near bonnie, change state
+                if dist < 70.0 {
+                    info!("Waking up...");
+                    machine.finish();
+                }
+            }
+        }
+        //
+        //
+        //
+    }
+}
+
+fn exit_idling(mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>, asset_server: Res<AssetServer>) {
+    let bonnie_asset = asset_server.load("BonNormal.png");
+
+    for (_, mut sprite) in &mut bonnie_query {
+        sprite.image = bonnie_asset.clone();
+    }
+}
+
 
 /////// Pooping
 
