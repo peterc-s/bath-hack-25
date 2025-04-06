@@ -297,6 +297,7 @@ fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) 
     let diagonal = ((resolution.width.pow(2) + resolution.height.pow(2)) as f32).sqrt();
     let base_speed = match state {
         BonnieState::Chasing => 2.0,
+        BonnieState::Teaching => 3.0,
         _ => 1.0,
     };
     diagonal * 0.15 * base_speed
@@ -406,6 +407,8 @@ fn handle_teaching(
     mut teach_window: Query<&mut Window, (With<TeachWindow>, Without<PrimaryWindow>)>,
     bonnie_window: Query<&Window, With<PrimaryWindow>>,
     time: Res<Time>,
+    winit_windows: NonSend<WinitWindows>,
+    window_entity_query: Query<Entity, With<PrimaryWindow>>,
 ) {
     // get the teach window
     let Ok(mut window) = teach_window.get_single_mut() else {
@@ -426,9 +429,17 @@ fn handle_teaching(
         _ => IVec2::ZERO,
     };
 
+    let monitor = window_entity_query
+        .get_single()
+        .ok()
+        .and_then(|entity| winit_windows.get_window(entity))
+        .and_then(|winit_window| winit_window.current_monitor())
+        .expect("Failed to get monitor.");
+
     // get direction and delta
     let direction = (target - current_pos).as_vec2().normalize();
-    let delta = direction * 200.0 * (time.delta_secs_f64() as f32);
+    let speed = calculate_movement_speed(monitor.size(), &BonnieState::Teaching);
+    let delta = direction * speed * (time.delta_secs_f64() as f32);
 
     // calculate remaining
     let remaining_vector = target - current_pos;
@@ -452,7 +463,7 @@ fn setup_teaching(
     info!("Blocking state machine...");
     machine.single_mut().block();
 
-    let pos = WindowPosition::At(IVec2::new(-100, 300));
+    let pos = WindowPosition::At(IVec2::new(-1000, 300));
 
     let teach_window = commands
         .spawn((
