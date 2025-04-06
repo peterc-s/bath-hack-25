@@ -35,6 +35,7 @@ const POOP_LAYER: usize = 42;
 const TEACH_LAYER: usize = 43;
 const BIRD_LAYER: usize = 44;
 const SCRATCH_LAYER: usize = 45;
+const NERD_LAYER: usize = 46;
 
 ////////
 // Resources
@@ -96,7 +97,10 @@ impl Plugin for BonnieStatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<BonnieState>()
             .init_resource::<GlobalRng>()
-            .add_systems(Startup, (setup_poop_sprite, setup_scratch_sprite))
+            .add_systems(
+                Startup,
+                (setup_poop_sprite, setup_scratch_sprite, setup_nerd_sprite),
+            )
             .add_systems(PostUpdate, handle_state_transitions)
             .add_systems(
                 Update,
@@ -239,6 +243,9 @@ struct PoopWindow;
 struct TeachWindow;
 
 #[derive(Component)]
+struct NerdWindow;
+
+#[derive(Component)]
 struct BirdWindow;
 
 #[derive(Component, Debug, Default)]
@@ -255,6 +262,7 @@ fn handle_window_closing<T: Component>(
     windows: Query<(), With<T>>,
     mut machine: Query<&mut StateMachine>,
     render_layer_query: Query<(Entity, &RenderLayers)>,
+    nerd_query: Query<Entity, With<NerdWindow>>,
 ) {
     for event in mouse_events.read() {
         if event.button == MouseButton::Left
@@ -268,6 +276,9 @@ fn handle_window_closing<T: Component>(
                 if let Ok(mut machine) = machine.get_single_mut() {
                     machine.finish();
                 }
+
+                // kill nerd window
+                commands.entity(nerd_query.single()).despawn_recursive();
 
                 // clear render layer ready for next image
                 for (entity, render_layers) in &render_layer_query {
@@ -480,7 +491,7 @@ fn handle_teaching(
         _ => IVec2::ZERO,
     };
 
-    let target = bonnie_pos + IVec2::new(-150, 200);
+    let target = bonnie_pos + IVec2::new(-170, 200);
 
     // get the current teach position
     let current_pos = match window.position {
@@ -513,11 +524,21 @@ fn handle_teaching(
     }
 }
 
+fn setup_nerd_sprite(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // get the sprite
+    let mut nerd_sprite = Sprite::from_image(asset_server.load("BonNerd.png"));
+    nerd_sprite.custom_size = Some(Vec2::new(35.0, 35.0));
+
+    // add to nerd render layer
+    commands.spawn((nerd_sprite, RenderLayers::layer(NERD_LAYER)));
+}
+
 fn setup_teaching(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut rng: ResMut<GlobalRng>,
     mut machine: Query<&mut StateMachine>,
+    bonnie_window: Query<&Window, With<PrimaryWindow>>,
 ) {
     info!("Blocking state machine...");
     machine.single_mut().block();
@@ -572,6 +593,56 @@ fn setup_teaching(
 
     // spawn the sprite on the render layer 1
     commands.spawn((teach_sprite, RenderLayers::layer(TEACH_LAYER)));
+
+    // get bonnies position
+    let bonnie_pos = match bonnie_window.single().position {
+        WindowPosition::At(pos) => pos,
+        _ => IVec2::ZERO,
+    };
+
+    let nerd_pos = WindowPosition::At(bonnie_pos + IVec2::new(140, 140));
+
+    let nerd_window = commands
+        .spawn((
+            Window {
+                transparent: true,
+                composite_alpha_mode: get_composite_mode(),
+                decorations: false,
+                resizable: false,
+                has_shadow: false,
+                titlebar_shown: false,
+                titlebar_transparent: false,
+                titlebar_show_buttons: false,
+                titlebar_show_title: false,
+                title: "Education!".to_string(),
+                name: Some("bonnie.buddy".into()),
+                resolution: (35.0, 35.0).into(),
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 35.0,
+                    min_height: 35.0,
+                    max_width: 35.0,
+                    max_height: 35.0,
+                },
+                window_level: WindowLevel::AlwaysOnTop,
+                position: nerd_pos,
+                ..default()
+            },
+            NerdWindow,
+        ))
+        .id();
+
+    // spawn a camera2d on NERD_LAYER
+    commands.spawn((
+        #[allow(deprecated)]
+        Camera2dBundle {
+            camera: Camera {
+                target: RenderTarget::Window(WindowRef::Entity(nerd_window)),
+                ..default()
+            },
+            ..default()
+        },
+        RenderLayers::layer(NERD_LAYER),
+    ));
 }
 
 fn random_education_image(rng: &mut impl Rng) -> String {
