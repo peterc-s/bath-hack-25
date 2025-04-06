@@ -714,7 +714,6 @@ fn random_meow(rng: &mut impl Rng) -> String {
 fn setup_bird(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    rng: ResMut<GlobalRng>,
     mut machine: Query<&mut StateMachine>,
 ) {
     let pos = WindowPosition::At(IVec2::new(100, 100));
