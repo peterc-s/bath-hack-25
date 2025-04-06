@@ -728,8 +728,8 @@ fn update_birds(
 
 fn setup_scratch_sprite(mut commands: Commands, asset_server: Res<AssetServer>) {
     // get the sprite
-    let mut scratch_sprite = Sprite::from_image(asset_server.load("BonPaw.png"));
-    scratch_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
+    let mut scratch_sprite = Sprite::from_image(asset_server.load("BonScratch.png"));
+    scratch_sprite.custom_size = Some(Vec2::new(60.0, 60.0));
 
     // add to scratch render layer
     commands.spawn((scratch_sprite, RenderLayers::layer(SCRATCH_LAYER)));
@@ -756,12 +756,12 @@ fn create_scratch(
                 titlebar_show_title: false,
                 title: "Scratch!".to_string(),
                 name: Some("bonnie.buddy".into()),
-                resolution: (40.0, 40.0).into(),
+                resolution: (60.0, 60.0).into(),
                 resize_constraints: WindowResizeConstraints {
-                    min_width: 40.0,
-                    min_height: 40.0,
-                    max_width: 40.0,
-                    max_height: 40.0,
+                    min_width: 60.0,
+                    min_height: 60.0,
+                    max_width: 60.0,
+                    max_height: 60.0,
                 },
                 window_level: WindowLevel::AlwaysOnTop,
                 position: pos,
