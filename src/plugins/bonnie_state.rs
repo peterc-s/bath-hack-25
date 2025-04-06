@@ -116,10 +116,11 @@ impl Plugin for BonnieStatePlugin {
                 OnEnter(BonnieState::Teaching),
                 (block_state, setup_teaching).chain(),
             )
-            .add_systems(OnEnter(BonnieState::Chasing), block_state)
+            .add_systems(OnEnter(BonnieState::Chasing), (block_state, setup_chase))
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping)
             .add_systems(OnEnter(BonnieState::Bird), setup_bird)
-            .add_systems(OnEnter(BonnieState::Scratch), create_scratch);
+            .add_systems(OnEnter(BonnieState::Scratch), create_scratch)
+            .add_systems(OnExit(BonnieState::Chasing), exit_chase);
     }
 }
 
@@ -411,6 +412,17 @@ fn setup_pooping(
 
 /////// Chasing
 
+fn setup_chase(
+    mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>,
+    asset_server: Res<AssetServer>,
+) {
+    let bonnie_asset = asset_server.load("BonAngryMouth.png");
+
+    for (_, mut sprite) in &mut bonnie_query {
+        sprite.image = bonnie_asset.clone();
+    }
+}
+
 fn handle_chasing(
     mut machine: Query<&mut StateMachine>,
     bonnie_query: Query<&mut Bonnie>,
@@ -437,6 +449,14 @@ fn handle_chasing(
                 }
             }
         }
+    }
+}
+
+fn exit_chase(mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>, asset_server: Res<AssetServer>) {
+    let bonnie_asset = asset_server.load("BonNormal.png");
+
+    for (_, mut sprite) in &mut bonnie_query {
+        sprite.image = bonnie_asset.clone();
     }
 }
 
