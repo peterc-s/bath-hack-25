@@ -486,7 +486,6 @@ fn setup_teaching(
                     max_width: 300.0,
                     max_height: 300.0,
                 },
-                present_mode: PresentMode::AutoNoVsync,
                 window_level: WindowLevel::AlwaysOnTop,
                 position: pos,
                 ..default()
