@@ -219,6 +219,7 @@ fn handle_window_closing<T: Component>(
     mut mouse_events: EventReader<MouseButtonInput>,
     windows: Query<(), With<T>>,
     mut machine: Query<&mut StateMachine>,
+    render_layer_query: Query<(Entity, &RenderLayers)>,
 ) {
     for event in mouse_events.read() {
         if event.button == MouseButton::Left
@@ -228,8 +229,16 @@ fn handle_window_closing<T: Component>(
             commands.entity(event.window).despawn_recursive();
 
             if TypeId::of::<T>() == TypeId::of::<TeachWindow>() {
+                // finish state machine
                 if let Ok(mut machine) = machine.get_single_mut() {
                     machine.finish();
+                }
+
+                // clear render layer ready for next image
+                for (entity, render_layers) in &render_layer_query {
+                    if *render_layers == RenderLayers::layer(TEACH_LAYER) {
+                        commands.entity(entity).despawn_recursive();
+                    }
                 }
             }
         }
@@ -394,10 +403,12 @@ fn handle_teaching(
     bonnie_window: Query<&Window, With<PrimaryWindow>>,
     time: Res<Time>,
 ) {
+    // get the teach window
     let Ok(mut window) = teach_window.get_single_mut() else {
         return;
     };
 
+    // get bonnies position
     let bonnie_pos = match bonnie_window.single().position {
         WindowPosition::At(pos) => pos,
         _ => IVec2::ZERO,
@@ -405,25 +416,28 @@ fn handle_teaching(
 
     let target = bonnie_pos + IVec2::new(-150, 200);
 
+    // get the current teach position
     let current_pos = match window.position {
         WindowPosition::At(pos) => pos,
         _ => IVec2::ZERO,
     };
 
+    // get direction and delta
     let direction = (target - current_pos).as_vec2().normalize();
     let delta = direction * 200.0 * (time.delta_secs_f64() as f32);
 
+    // calculate remaining
     let remaining_vector = target - current_pos;
     let remaining_length = remaining_vector.as_vec2().length();
     let step_length = delta.length();
 
+    // only step if needed
     if remaining_length <= step_length {
         window.position = WindowPosition::At(target);
     } else {
         window.position = WindowPosition::At(current_pos + delta.round().as_ivec2());
     }
 }
-/////// Teaching
 
 fn setup_teaching(
     mut commands: Commands,
@@ -466,7 +480,7 @@ fn setup_teaching(
         ))
         .id();
 
-    // spawn a camera2d on render layer 1
+    // spawn a camera2d on TEACH_LAYER
     commands.spawn((
         #[allow(deprecated)]
         Camera2dBundle {
