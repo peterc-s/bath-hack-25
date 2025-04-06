@@ -719,6 +719,10 @@ fn setup_bird(
 ) {
     let pos = WindowPosition::At(IVec2::new(100, 100));
 
+    // get the sprite
+    let mut bird_sprite = Sprite::from_image(asset_server.load("Bird.png"));
+    bird_sprite.custom_size = Some(Vec2::new(55.0, 55.0));
+
     let bird_window = commands
         .spawn((
             Window {
@@ -733,12 +737,12 @@ fn setup_bird(
                 titlebar_show_title: false,
                 title: "Bird!".to_string(),
                 name: Some("bonnie.buddy".into()),
-                resolution: (40.0, 40.0).into(),
+                resolution: (55.0, 55.0).into(),
                 resize_constraints: WindowResizeConstraints {
-                    min_width: 40.0,
-                    min_height: 40.0,
-                    max_width: 40.0,
-                    max_height: 40.0,
+                    min_width: 55.0,
+                    min_height: 55.0,
+                    max_width: 55.0,
+                    max_height: 55.0,
                 },
                 window_level: WindowLevel::AlwaysOnTop,
                 position: pos,
@@ -746,6 +750,8 @@ fn setup_bird(
             },
             BirdWindow,
             BirdDirection { v: IVec2::ONE },
+            bird_sprite,
+            RenderLayers::layer(BIRD_LAYER),
         ))
         .id();
 
@@ -761,18 +767,12 @@ fn setup_bird(
         },
         RenderLayers::layer(BIRD_LAYER),
     ));
-    // get the sprite
-    let mut bird_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
-    bird_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
-
-    // spawn the sprite on the render layer 1
-    commands.spawn((bird_sprite, RenderLayers::layer(BIRD_LAYER)));
 
     machine.single_mut().finish();
 }
 
 fn update_birds(
-    mut bird_windows: Query<(&mut Window, &mut BirdDirection)>,
+    mut bird_windows: Query<(&mut Window, &mut BirdDirection, &mut Sprite)>,
     winit_windows: NonSend<WinitWindows>,
     window_entity_query: Query<Entity, With<PrimaryWindow>>,
     time: Res<Time>,
@@ -785,7 +785,7 @@ fn update_birds(
         .expect("Failed to get monitor.")
         .size();
 
-    for (mut bird_window, mut bird_direction) in &mut bird_windows {
+    for (mut bird_window, mut bird_direction, mut sprite) in &mut bird_windows {
         let current_pos = match bird_window.position {
             WindowPosition::At(pos) => pos,
             _ => IVec2::ZERO,
@@ -808,6 +808,9 @@ fn update_birds(
             }
             _ => {}
         }
+
+        sprite.flip_x = bird_direction.v.x > 0;
+
         let speed = (calculate_movement_speed(monitor_size, &BonnieState::Bird) as f64
             * time.delta_secs_f64()) as f32;
         bird_window.position =
