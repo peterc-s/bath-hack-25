@@ -21,11 +21,36 @@ pub fn get_composite_mode() -> CompositeAlphaMode {
     CompositeAlphaMode::default()
 }
 
+#[cfg(target_os = "linux")]
+fn configure_linux_audio() {
+    unsafe {
+        use std::path::PathBuf;
+
+        // try to detect PulseAudio/PipeWire socket location
+        let runtime_dir =
+            std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+
+        let pulse_path = PathBuf::from(&runtime_dir).join("pulse/native");
+        let pipewire_path = PathBuf::from(&runtime_dir).join("pipewire-0");
+
+        // try both PulseAudio and PipeWire sockets
+        if pulse_path.exists() {
+            std::env::set_var("PULSE_SERVER", pulse_path.to_str().unwrap());
+        } else if pipewire_path.exists() {
+            std::env::set_var("PULSE_SERVER", pipewire_path.to_str().unwrap());
+        }
+
+        // ALSA fallback configuration
+        std::env::set_var("ALSA_DRIVER", "pulse");
+        std::env::set_var("SDL_AUDIODRIVER", "pulse");
+    }
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
-    unsafe {
-        std::env::set_var("PULSE_SERVER", "/run/user/1000/pulse/native");
-        std::env::set_var("ALSA_CONFIG_PATH", "/dev/null");
+    {
+        configure_linux_audio();
+        unsafe { std::env::set_var("BEVY_AUDIO_THREAD", "1") };
     }
 
     App::new()
