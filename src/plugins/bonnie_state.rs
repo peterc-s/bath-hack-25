@@ -30,7 +30,7 @@ use super::global_cursor::GlobalCursorPosition;
 ////////
 
 const WINDOW_SIZE_BUFFER: u32 = 150;
-const BIRD_SIZE_BUFFER: i32 = 40;
+const BIRD_SIZE_BUFFER: i32 = 80;
 const POOP_LAYER: usize = 42;
 const TEACH_LAYER: usize = 43;
 const BIRD_LAYER: usize = 44;
