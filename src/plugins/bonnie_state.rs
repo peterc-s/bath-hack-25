@@ -726,6 +726,7 @@ fn random_education_image(rng: &mut impl Rng) -> String {
         "educational/meme2.png",
         "educational/meme3.png",
         "educational/meme4.png",
+        "educational/meme5.png",
         "educational/text/tip1.png",
         "educational/text/tip2.png",
         "educational/text/tip3.png",
