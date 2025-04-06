@@ -300,6 +300,14 @@ fn handle_window_closing<T: Component>(
                         ..default()
                     },
                 ));
+            } else if TypeId::of::<T>() == TypeId::of::<BirdWindow>() {
+                commands.spawn((
+                    AudioPlayer::new(asset_server.load("kakapo-death.ogg")),
+                    PlaybackSettings {
+                        mode: PlaybackMode::Once,
+                        ..default()
+                    },
+                ));
             }
         }
     }
