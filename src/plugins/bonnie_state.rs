@@ -12,7 +12,7 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, view::RenderLayers},
     utils::Duration,
-    window::{PresentMode, PrimaryWindow, WindowLevel, WindowRef},
+    window::{CursorOptions, PresentMode, PrimaryWindow, WindowLevel, WindowRef},
     winit::WinitWindows,
 };
 use dpi::PhysicalSize;
@@ -29,11 +29,12 @@ use super::global_cursor::GlobalCursorPosition;
 // Constants
 ////////
 
-const WINDOW_SIZE_BUFFER: u32 = 150;
+const WINDOW_SIZE_BUFFER: u32 = 200;
 const BIRD_SIZE_BUFFER: i32 = 80;
 const POOP_LAYER: usize = 42;
 const TEACH_LAYER: usize = 43;
 const BIRD_LAYER: usize = 44;
+const SCRATCH_LAYER: usize = 45;
 
 ////////
 // Resources
@@ -67,6 +68,7 @@ pub enum BonnieState {
     Teaching,
     Meowing,
     Bird,
+    Scratch,
 }
 
 impl From<BonnieStateDiscriminants> for BonnieState {
@@ -79,6 +81,7 @@ impl From<BonnieStateDiscriminants> for BonnieState {
             BonnieStateDiscriminants::Teaching => BonnieState::Teaching,
             BonnieStateDiscriminants::Meowing => BonnieState::Meowing,
             BonnieStateDiscriminants::Bird => BonnieState::Bird,
+            BonnieStateDiscriminants::Scratch => BonnieState::Scratch,
         }
     }
 }
@@ -93,7 +96,7 @@ impl Plugin for BonnieStatePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<BonnieState>()
             .init_resource::<GlobalRng>()
-            .add_systems(Startup, setup_poop_sprite)
+            .add_systems(Startup, (setup_poop_sprite, setup_scratch_sprite))
             .add_systems(PostUpdate, handle_state_transitions)
             .add_systems(
                 Update,
@@ -115,7 +118,8 @@ impl Plugin for BonnieStatePlugin {
             )
             .add_systems(OnEnter(BonnieState::Chasing), block_state)
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping)
-            .add_systems(OnEnter(BonnieState::Bird), setup_bird);
+            .add_systems(OnEnter(BonnieState::Bird), setup_bird)
+            .add_systems(OnEnter(BonnieState::Scratch), create_scratch);
     }
 }
 
@@ -240,6 +244,9 @@ struct BirdWindow;
 struct BirdDirection {
     v: IVec2,
 }
+
+#[derive(Component)]
+struct ScratchWindow;
 
 fn handle_window_closing<T: Component>(
     mut commands: Commands,
@@ -552,6 +559,13 @@ fn random_education_image(rng: &mut impl Rng) -> String {
         "educational/meme1.png",
         "educational/meme2.png",
         "educational/meme3.png",
+        "educational/text/tip1.png",
+        "educational/text/tip2.png",
+        "educational/text/tip3.png",
+        "educational/text/tip4.png",
+        "educational/text/tip5.png",
+        "educational/text/tip6.png",
+        "educational/text/tip7.png",
     ];
     IMAGES.choose(rng).unwrap().to_string()
 }
@@ -708,4 +722,72 @@ fn update_birds(
         bird_window.position =
             WindowPosition::At(current_pos + (bird_direction.v.as_vec2() * speed).as_ivec2());
     }
+}
+
+/////// Scratch
+
+fn setup_scratch_sprite(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // get the sprite
+    let mut scratch_sprite = Sprite::from_image(asset_server.load("BonPaw.png"));
+    scratch_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
+
+    // add to scratch render layer
+    commands.spawn((scratch_sprite, RenderLayers::layer(SCRATCH_LAYER)));
+}
+
+fn create_scratch(
+    mut commands: Commands,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    mut machine: Query<&mut StateMachine>,
+) {
+    let pos = window_query.single().position;
+
+    let scratch_window = commands
+        .spawn((
+            Window {
+                transparent: true,
+                composite_alpha_mode: get_composite_mode(),
+                decorations: false,
+                resizable: false,
+                has_shadow: false,
+                titlebar_shown: false,
+                titlebar_transparent: false,
+                titlebar_show_buttons: false,
+                titlebar_show_title: false,
+                title: "Scratch!".to_string(),
+                name: Some("bonnie.buddy".into()),
+                resolution: (40.0, 40.0).into(),
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 40.0,
+                    min_height: 40.0,
+                    max_width: 40.0,
+                    max_height: 40.0,
+                },
+                window_level: WindowLevel::AlwaysOnTop,
+                position: pos,
+                cursor_options: CursorOptions {
+                    hit_test: false,
+                    ..default()
+                },
+                ..default()
+            },
+            ScratchWindow,
+        ))
+        .id();
+
+    // spawn a camera2d on SCRATCH_LAYER
+    commands.spawn((
+        #[allow(deprecated)]
+        Camera2dBundle {
+            camera: Camera {
+                target: RenderTarget::Window(WindowRef::Entity(scratch_window)),
+                ..default()
+            },
+            ..default()
+        },
+        RenderLayers::layer(SCRATCH_LAYER),
+    ));
+
+    // finish state
+    machine.single_mut().finish();
 }
