@@ -32,6 +32,7 @@ use super::global_cursor::GlobalCursorPosition;
 const WINDOW_SIZE_BUFFER: u32 = 150;
 const POOP_LAYER: usize = 42;
 const TEACH_LAYER: usize = 43;
+const BIRD_LAYER: usize = 44;
 
 ////////
 // Resources
@@ -64,6 +65,7 @@ pub enum BonnieState {
     Chasing,
     Teaching,
     Meowing,
+    Bird,
 }
 
 impl From<BonnieStateDiscriminants> for BonnieState {
@@ -75,6 +77,7 @@ impl From<BonnieStateDiscriminants> for BonnieState {
             BonnieStateDiscriminants::Chasing => BonnieState::Chasing,
             BonnieStateDiscriminants::Teaching => BonnieState::Teaching,
             BonnieStateDiscriminants::Meowing => BonnieState::Meowing,
+            BonnieStateDiscriminants::Bird => BonnieState::Bird,
         }
     }
 }
@@ -96,9 +99,11 @@ impl Plugin for BonnieStatePlugin {
                 (
                     handle_window_closing::<PoopWindow>,
                     handle_window_closing::<TeachWindow>,
+                    handle_window_closing::<BirdWindow>,
                     handle_movement,
                     handle_teaching,
                     handle_chasing,
+                    update_birds,
                 )
                     .chain(),
             )
@@ -108,7 +113,8 @@ impl Plugin for BonnieStatePlugin {
                 (block_state, setup_teaching).chain(),
             )
             .add_systems(OnEnter(BonnieState::Chasing), block_state)
-            .add_systems(OnEnter(BonnieState::Pooping), setup_pooping);
+            .add_systems(OnEnter(BonnieState::Pooping), setup_pooping)
+            .add_systems(OnEnter(BonnieState::Bird), setup_bird);
     }
 }
 
@@ -226,6 +232,14 @@ struct PoopWindow;
 #[derive(Component)]
 struct TeachWindow;
 
+#[derive(Component)]
+struct BirdWindow;
+
+#[derive(Component, Debug, Default)]
+struct BirdDirection {
+    v: IVec2,
+}
+
 fn handle_window_closing<T: Component>(
     mut commands: Commands,
     mut mouse_events: EventReader<MouseButtonInput>,
@@ -314,6 +328,7 @@ fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) 
     let base_speed = match state {
         BonnieState::Chasing => 2.0,
         BonnieState::Teaching => 3.0,
+        BonnieState::Bird => 1.5,
         _ => 1.0,
     };
     diagonal * 0.15 * base_speed
@@ -540,7 +555,7 @@ fn random_education_image(rng: &mut impl Rng) -> String {
     IMAGES.choose(rng).unwrap().to_string()
 }
 
-/////// Chasing
+/////// Meowing
 
 fn do_meow(
     mut commands: Commands,
@@ -586,4 +601,99 @@ fn random_meow(rng: &mut impl Rng) -> String {
         "meows/zoe.ogg",
     ];
     MEOWS.choose(rng).unwrap().to_string()
+}
+
+/////// Birds
+
+fn setup_bird(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    rng: ResMut<GlobalRng>,
+    mut machine: Query<&mut StateMachine>,
+) {
+    let pos = WindowPosition::At(IVec2::ZERO);
+
+    let bird_window = commands
+        .spawn((
+            Window {
+                transparent: true,
+                composite_alpha_mode: get_composite_mode(),
+                decorations: false,
+                resizable: false,
+                has_shadow: false,
+                titlebar_shown: false,
+                titlebar_transparent: false,
+                titlebar_show_buttons: false,
+                titlebar_show_title: false,
+                title: "Bird!".to_string(),
+                name: Some("bonnie.buddy".into()),
+                resolution: (40.0, 40.0).into(),
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 40.0,
+                    min_height: 40.0,
+                    max_width: 40.0,
+                    max_height: 40.0,
+                },
+                window_level: WindowLevel::AlwaysOnTop,
+                position: pos,
+                ..default()
+            },
+            BirdWindow,
+            BirdDirection { v: IVec2::ONE },
+        ))
+        .id();
+
+    // spawn a camera2d on BIRD_LAYER
+    commands.spawn((
+        #[allow(deprecated)]
+        Camera2dBundle {
+            camera: Camera {
+                target: RenderTarget::Window(WindowRef::Entity(bird_window)),
+                ..default()
+            },
+            ..default()
+        },
+        RenderLayers::layer(BIRD_LAYER),
+    ));
+    // get the sprite
+    let mut bird_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
+    bird_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
+
+    // spawn the sprite on the render layer 1
+    commands.spawn((bird_sprite, RenderLayers::layer(BIRD_LAYER)));
+
+    machine.single_mut().finish();
+}
+
+fn update_birds(
+    mut bird_windows: Query<(&mut Window, &mut BirdDirection)>,
+    winit_windows: NonSend<WinitWindows>,
+    window_entity_query: Query<Entity, With<PrimaryWindow>>,
+    time: Res<Time>,
+) {
+    let monitor_size = window_entity_query
+        .get_single()
+        .ok()
+        .and_then(|entity| winit_windows.get_window(entity))
+        .and_then(|winit_window| winit_window.current_monitor())
+        .expect("Failed to get monitor.")
+        .size();
+
+    for (mut bird_window, mut bird_direction) in &mut bird_windows {
+        let current_pos = match bird_window.position {
+            WindowPosition::At(pos) => pos,
+            _ => IVec2::ZERO,
+        };
+
+        match current_pos {
+            IVec2 { x, .. } if x < 0 || x > monitor_size.width as i32 => bird_direction.v.x *= -1,
+            IVec2 { y, .. } if y < 0 || y > monitor_size.height as i32 => bird_direction.v.y *= -1,
+            _ => {}
+        }
+
+        let speed = (calculate_movement_speed(monitor_size, &BonnieState::Bird) as f64
+            * time.delta_secs_f64()) as f32;
+        bird_window.position =
+            WindowPosition::At(current_pos + (bird_direction.v.as_vec2() * speed).as_ivec2());
+    }
 }
