@@ -128,7 +128,6 @@ impl Plugin for BonnieStatePlugin {
             .add_systems(OnEnter(BonnieState::Idle), (block_state, setup_idling))
             .add_systems(OnExit(BonnieState::Idle), exit_idling)
             .add_systems(OnExit(BonnieState::Chasing), exit_chase);
-        
     }
 }
 
@@ -251,7 +250,7 @@ struct TeachWindow;
 #[derive(Component)]
 struct NerdWindow;
 
-#[derive(Component)]
+#[derive(Component, Hash)]
 struct BirdWindow;
 
 #[derive(Component, Debug, Default)]
@@ -269,6 +268,7 @@ fn handle_window_closing<T: Component>(
     mut machine: Query<&mut StateMachine>,
     render_layer_query: Query<(Entity, &RenderLayers)>,
     nerd_query: Query<Entity, With<NerdWindow>>,
+    asset_server: Res<AssetServer>,
 ) {
     for event in mouse_events.read() {
         if event.button == MouseButton::Left
@@ -292,11 +292,18 @@ fn handle_window_closing<T: Component>(
                         commands.entity(entity).despawn_recursive();
                     }
                 }
+            } else if TypeId::of::<T>() == TypeId::of::<PoopWindow>() {
+                commands.spawn((
+                    AudioPlayer::new(asset_server.load("munch.ogg")),
+                    PlaybackSettings {
+                        mode: PlaybackMode::Once,
+                        ..default()
+                    },
+                ));
             }
         }
     }
 }
-
 
 ///////
 // Movement system
@@ -365,7 +372,7 @@ fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) 
 // State-Specific Behaviour
 ///////
 
-/////// Idling 
+/////// Idling
 fn setup_idling(
     mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>,
     asset_server: Res<AssetServer>,
@@ -404,20 +411,19 @@ fn handle_idling(
                 }
             }
         }
-        //
-        //
-        //
     }
 }
 
-fn exit_idling(mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>, asset_server: Res<AssetServer>) {
+fn exit_idling(
+    mut bonnie_query: Query<(&mut Bonnie, &mut Sprite)>,
+    asset_server: Res<AssetServer>,
+) {
     let bonnie_asset = asset_server.load("BonNormal.png");
 
     for (_, mut sprite) in &mut bonnie_query {
         sprite.image = bonnie_asset.clone();
     }
 }
-
 
 /////// Pooping
 
@@ -774,12 +780,11 @@ fn random_meow(rng: &mut impl Rng) -> String {
 
 fn setup_bird(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut machine: Query<&mut StateMachine>,
+    asset_server: Res<AssetServer>,
 ) {
     let pos = WindowPosition::At(IVec2::new(100, 100));
 
-    // get the sprite
     let mut bird_sprite = Sprite::from_image(asset_server.load("Bird.png"));
     bird_sprite.custom_size = Some(Vec2::new(55.0, 55.0));
 
@@ -809,8 +814,8 @@ fn setup_bird(
                 ..default()
             },
             BirdWindow,
-            BirdDirection { v: IVec2::ONE },
             bird_sprite,
+            BirdDirection { v: IVec2::ONE },
             RenderLayers::layer(BIRD_LAYER),
         ))
         .id();
@@ -845,7 +850,7 @@ fn update_birds(
         .expect("Failed to get monitor.")
         .size();
 
-    for (mut bird_window, mut bird_direction, mut sprite) in &mut bird_windows {
+    for (mut bird_window, mut bird_direction, mut bird_sprite) in &mut bird_windows {
         let current_pos = match bird_window.position {
             WindowPosition::At(pos) => pos,
             _ => IVec2::ZERO,
@@ -869,7 +874,7 @@ fn update_birds(
             _ => {}
         }
 
-        sprite.flip_x = bird_direction.v.x > 0;
+        bird_sprite.flip_x = bird_direction.v.x > 0;
 
         let speed = (calculate_movement_speed(monitor_size, &BonnieState::Bird) as f64
             * time.delta_secs_f64()) as f32;
