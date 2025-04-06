@@ -12,6 +12,9 @@ pub enum BonnieState {
     #[default]
     Idle,
     Walking(IVec2),
+    Pooping,
+    Chasing,
+    Teaching,
 }
 
 #[derive(Component, Debug)]

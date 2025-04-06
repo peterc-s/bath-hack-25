@@ -1,25 +1,33 @@
 use std::time::Duration;
 
+use bevy::window::{PresentMode, WindowLevel};
 use bevy::{prelude::*, window::CompositeAlphaMode};
 
 mod plugins;
 use plugins::bonnie_state;
 use plugins::control;
+use plugins::global_cursor;
 
 pub mod bonnie;
 use bonnie::{Bonnie, BonnieState, StateMachine};
 
 #[cfg(target_os = "macos")]
-fn get_composite_mode() -> CompositeAlphaMode {
+pub fn get_composite_mode() -> CompositeAlphaMode {
     CompositeAlphaMode::PostMultiplied
 }
 
 #[cfg(not(target_os = "macos"))]
-fn get_composite_mode() -> CompositeAlphaMode {
+pub fn get_composite_mode() -> CompositeAlphaMode {
     CompositeAlphaMode::default()
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        std::env::set_var("PULSE_SERVER", "/run/user/1000/pulse/native");
+        std::env::set_var("ALSA_CONFIG_PATH", "/dev/null");
+    }
+
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -36,7 +44,15 @@ fn main() {
                         titlebar_show_title: false,
                         title: "Bonnie Buddy".to_string(),
                         name: Some("bonnie.buddy".into()),
-                        resolution: (50.0, 50.0).into(),
+                        resolution: (100.0, 100.0).into(),
+                        resize_constraints: WindowResizeConstraints {
+                            min_width: 100.0,
+                            min_height: 100.0,
+                            max_width: 100.0,
+                            max_height: 100.0,
+                        },
+                        present_mode: PresentMode::AutoNoVsync,
+                        window_level: WindowLevel::AlwaysOnTop,
                         ..default()
                     }),
                     ..default()
@@ -45,6 +61,7 @@ fn main() {
         )
         .add_plugins(control::BonnieControlPlugin)
         .add_plugins(bonnie_state::BonnieStatePlugin)
+        .add_plugins(global_cursor::GlobalCursorPlugin)
         .insert_resource(ClearColor(Color::NONE))
         .add_systems(Startup, setup)
         .run();
