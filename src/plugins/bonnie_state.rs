@@ -103,7 +103,11 @@ impl Plugin for BonnieStatePlugin {
                     .chain(),
             )
             .add_systems(OnEnter(BonnieState::Meowing), do_meow)
-            .add_systems(OnEnter(BonnieState::Teaching), setup_teaching)
+            .add_systems(
+                OnEnter(BonnieState::Teaching),
+                (block_state, setup_teaching).chain(),
+            )
+            .add_systems(OnEnter(BonnieState::Chasing), block_state)
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping);
     }
 }
@@ -208,6 +212,10 @@ fn random_state(
     next_state
 }
 
+fn block_state(mut machine: Query<&mut StateMachine>) {
+    machine.single_mut().block();
+}
+
 ///////
 // Window management
 ///////
@@ -288,9 +296,17 @@ fn handle_movement(
 
     let direction = (target_position - current_position).as_vec2().normalize();
     let speed = calculate_movement_speed(monitor.size(), state.get());
-    let delta = direction * speed * (time.delta_secs_f64() as f32);
+    let delta = direction * speed * time.delta_secs_f64() as f32;
 
-    window.position = WindowPosition::At(current_position + delta.round().as_ivec2());
+    let remaining_vector = target_position - current_position;
+    let remaining_length = remaining_vector.as_vec2().length();
+    let step_length = delta.length();
+
+    if remaining_length <= step_length {
+        window.position = WindowPosition::At(target_position);
+    } else {
+        window.position = WindowPosition::At(current_position + delta.round().as_ivec2());
+    }
 }
 
 fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) -> f32 {
