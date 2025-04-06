@@ -13,7 +13,10 @@ use bevy::{
     winit::WinitWindows,
 };
 use dpi::PhysicalSize;
-use rand::{Rng, prelude::IteratorRandom};
+use rand::{
+    Rng,
+    prelude::{IndexedRandom, IteratorRandom},
+};
 use strum::IntoEnumIterator;
 
 ///////
@@ -24,15 +27,17 @@ pub struct BonnieStatePlugin;
 
 impl Plugin for BonnieStatePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GlobalCursorPosition>().add_systems(
-            Update,
-            (
-                state_transition,
-                state_behaviours,
-                close_poop_window_on_click,
-                close_teach_window_on_click,
-            ),
-        );
+        app.init_resource::<GlobalCursorPosition>()
+            .add_systems(
+                Update,
+                (
+                    state_transition,
+                    state_behaviours,
+                    close_poop_window_on_click,
+                    close_teach_window_on_click,
+                ),
+            )
+            .add_systems(Startup, add_poop_layer);
     }
 }
 
@@ -42,6 +47,15 @@ impl Plugin for BonnieStatePlugin {
 
 #[derive(Component)]
 struct PoopWindowMarker;
+
+fn add_poop_layer(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // get the sprite
+    let mut poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
+    poop_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
+
+    // spawn the sprite on the render layer 1
+    commands.spawn((poop_sprite, RenderLayers::layer(42)));
+}
 
 fn close_poop_window_on_click(
     mut commands: Commands,
@@ -113,6 +127,7 @@ fn close_teach_window_on_click(
     mut mouse_button_events: EventReader<MouseButtonInput>,
     teach_windows: Query<(), With<TeachingWindowMarker>>,
     mut machine_query: Query<&mut StateMachine>,
+    render_layer_query: Query<(Entity, &RenderLayers)>,
 ) {
     // get mouse events
     for event in mouse_button_events.read() {
@@ -123,6 +138,14 @@ fn close_teach_window_on_click(
         {
             // despawn the teach window
             commands.entity(event.window).despawn_recursive();
+
+            // remove the things in the render layer
+            for (entity, render_layers) in &render_layer_query {
+                if *render_layers == RenderLayers::layer(43) {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+
             let mut machine = machine_query
                 .get_single_mut()
                 .expect("Failed to get state machine.");
@@ -266,9 +289,20 @@ fn state_transition(
                             RenderLayers::layer(43),
                         ));
 
+                        let education_sprites = [
+                            "educational/meme1.png",
+                            "educational/meme2.png",
+                            "educational/meme3.png",
+                        ];
+
                         // get the sprite
-                        let mut teach_sprite =
-                            Sprite::from_image(asset_server.load("educational/meme1.png"));
+                        let mut teach_sprite = Sprite::from_image(
+                            asset_server.load(
+                                *education_sprites
+                                    .choose(&mut rng)
+                                    .expect("Couldn't get an education sprite."),
+                            ),
+                        );
                         teach_sprite.custom_size = Some(Vec2::new(300.0, 300.0));
 
                         // spawn the sprite on the render layer 1
@@ -295,7 +329,6 @@ fn state_behaviours(
     mut teach_window_query: Query<&mut Window, With<TeachingWindowMarker>>,
     mut commands: Commands,
     winit_windows: NonSend<WinitWindows>,
-    asset_server: Res<AssetServer>,
     cursor_pos: Res<GlobalCursorPosition>,
     time: Res<Time>,
 ) {
@@ -372,13 +405,6 @@ fn state_behaviours(
                     RenderLayers::layer(42),
                 ));
 
-                // get the sprite
-                let mut poop_sprite = Sprite::from_image(asset_server.load("BonPoop.png"));
-                poop_sprite.custom_size = Some(Vec2::new(40.0, 40.0));
-
-                // spawn the sprite on the render layer 1
-                commands.spawn((poop_sprite, RenderLayers::layer(42)));
-
                 // make timer finish to change state
                 let remaining = machine.timer.remaining();
                 machine.timer.tick(remaining);
@@ -403,8 +429,10 @@ fn state_behaviours(
                         _ => IVec2::new(100, 100),
                     };
 
+                    let target_pos = current_bonnie_pos + IVec2::new(-150, 200);
+
                     let speed = get_resolution_based_speed(monitor_size, 0.8);
-                    let diff = current_bonnie_pos - current_pos;
+                    let diff = target_pos - current_pos;
                     let len = diff.as_vec2().length();
                     let move_per_frame = (speed as f64 * time.delta_secs_f64()) as f32;
                     let move_size = move_per_frame.min(len);
