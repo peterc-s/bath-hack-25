@@ -687,19 +687,22 @@ fn update_birds(
         };
 
         match current_pos {
-            IVec2 { x, .. }
-                if x < BIRD_SIZE_BUFFER || x + BIRD_SIZE_BUFFER > monitor_size.width as i32 =>
-            {
-                bird_direction.v.x *= -1
+            IVec2 { x, .. } if x < BIRD_SIZE_BUFFER => {
+                bird_direction.v.x = 1;
             }
-            IVec2 { y, .. }
-                if y < BIRD_SIZE_BUFFER || y + BIRD_SIZE_BUFFER > monitor_size.height as i32 =>
-            {
-                bird_direction.v.y *= -1
+            IVec2 { x, .. } if x + BIRD_SIZE_BUFFER > monitor_size.width as i32 => {
+                bird_direction.v.x = -1;
+            }
+
+            // Vertical boundaries
+            IVec2 { y, .. } if y < BIRD_SIZE_BUFFER => {
+                bird_direction.v.y = 1;
+            }
+            IVec2 { y, .. } if y + BIRD_SIZE_BUFFER > monitor_size.height as i32 => {
+                bird_direction.v.y = -1;
             }
             _ => {}
         }
-
         let speed = (calculate_movement_speed(monitor_size, &BonnieState::Bird) as f64
             * time.delta_secs_f64()) as f32;
         bird_window.position =
