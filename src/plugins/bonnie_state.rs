@@ -125,7 +125,7 @@ impl Plugin for BonnieStatePlugin {
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping)
             .add_systems(OnEnter(BonnieState::Bird), setup_bird)
             .add_systems(OnEnter(BonnieState::Scratch), create_scratch)
-            .add_systems(OnEnter(BonnieState::Idle), setup_idling)
+            .add_systems(OnEnter(BonnieState::Idle), (block_state, setup_idling))
             .add_systems(OnExit(BonnieState::Idle), exit_idling)
             .add_systems(OnExit(BonnieState::Chasing), exit_chase);
         
@@ -232,8 +232,10 @@ fn random_state(
     next_state
 }
 
-fn block_state(mut machine: Query<&mut StateMachine>) {
-    machine.single_mut().block();
+fn block_state(mut machine_query: Query<&mut StateMachine>) {
+    if let Ok(mut machine) = machine_query.get_single_mut() {
+        machine.block();
+    }
 }
 
 ///////
@@ -396,8 +398,8 @@ fn handle_idling(
                 let dist = diff.length();
 
                 // if cursor near bonnie, change state
-                if dist < 35.0 {
-                    info!("Close enough, finishing...");
+                if dist < 70.0 {
+                    info!("Waking up...");
                     machine.finish();
                 }
             }
