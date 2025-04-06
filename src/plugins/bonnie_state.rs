@@ -7,6 +7,7 @@ use crate::{
     get_composite_mode,
 };
 use bevy::{
+    audio::PlaybackMode,
     input::{ButtonState, mouse::MouseButtonInput},
     prelude::*,
     render::{camera::RenderTarget, view::RenderLayers},
@@ -62,6 +63,7 @@ pub enum BonnieState {
     Pooping,
     Chasing,
     Teaching,
+    Meowing,
 }
 
 impl From<BonnieStateDiscriminants> for BonnieState {
@@ -72,6 +74,7 @@ impl From<BonnieStateDiscriminants> for BonnieState {
             BonnieStateDiscriminants::Pooping => BonnieState::Pooping,
             BonnieStateDiscriminants::Chasing => BonnieState::Chasing,
             BonnieStateDiscriminants::Teaching => BonnieState::Teaching,
+            BonnieStateDiscriminants::Meowing => BonnieState::Meowing,
         }
     }
 }
@@ -99,6 +102,7 @@ impl Plugin for BonnieStatePlugin {
                 )
                     .chain(),
             )
+            .add_systems(OnEnter(BonnieState::Meowing), do_meow)
             .add_systems(OnEnter(BonnieState::Teaching), setup_teaching)
             .add_systems(OnEnter(BonnieState::Pooping), setup_pooping);
     }
@@ -508,4 +512,52 @@ fn random_education_image(rng: &mut impl Rng) -> String {
         "educational/meme3.png",
     ];
     IMAGES.choose(rng).unwrap().to_string()
+}
+
+/////// Chasing
+
+fn do_meow(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut rng: ResMut<GlobalRng>,
+    mut machine: Query<&mut StateMachine>,
+) {
+    commands.spawn((
+        AudioPlayer::new(asset_server.load(random_meow(&mut rng.0))),
+        PlaybackSettings {
+            mode: PlaybackMode::Once,
+            ..default()
+        },
+    ));
+
+    machine.single_mut().finish();
+}
+
+fn random_meow(rng: &mut impl Rng) -> String {
+    const MEOWS: &[&str] = &[
+        "meows/anais.m4a",
+        "meows/bella.m4a",
+        "meows/ben.m4a",
+        "meows/caroline.m4a",
+        "meows/dimitra.m4a",
+        "meows/dom.m4a",
+        "meows/helen-long-quack.m4a",
+        "meows/helen.m4a",
+        "meows/helen-quack.m4a",
+        "meows/julian.m4a",
+        "meows/kenneth.m4a",
+        "meows/kian.m4a",
+        "meows/laura.m4a",
+        "meows/maddie.m4a",
+        "meows/manya.m4a",
+        "meows/nehal.m4a",
+        "meows/phoebe.m4a",
+        "meows/rose.m4a",
+        "meows/stemple.m4a",
+        "meows/tanmay.m4a",
+        "meows/tiff.m4a",
+        "meows/will-sasaki.m4a",
+        "meows/zoe.m4a",
+    ];
+    MEOWS.choose(rng).unwrap().to_string()
 }
