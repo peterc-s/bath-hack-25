@@ -30,6 +30,7 @@ use super::global_cursor::GlobalCursorPosition;
 ////////
 
 const WINDOW_SIZE_BUFFER: u32 = 150;
+const BIRD_SIZE_BUFFER: i32 = 40;
 const POOP_LAYER: usize = 42;
 const TEACH_LAYER: usize = 43;
 const BIRD_LAYER: usize = 44;
@@ -611,7 +612,7 @@ fn setup_bird(
     rng: ResMut<GlobalRng>,
     mut machine: Query<&mut StateMachine>,
 ) {
-    let pos = WindowPosition::At(IVec2::ZERO);
+    let pos = WindowPosition::At(IVec2::new(100, 100));
 
     let bird_window = commands
         .spawn((
@@ -686,8 +687,16 @@ fn update_birds(
         };
 
         match current_pos {
-            IVec2 { x, .. } if x < 0 || x > monitor_size.width as i32 => bird_direction.v.x *= -1,
-            IVec2 { y, .. } if y < 0 || y > monitor_size.height as i32 => bird_direction.v.y *= -1,
+            IVec2 { x, .. }
+                if x < BIRD_SIZE_BUFFER || x + BIRD_SIZE_BUFFER > monitor_size.width as i32 =>
+            {
+                bird_direction.v.x *= -1
+            }
+            IVec2 { y, .. }
+                if y < BIRD_SIZE_BUFFER || y + BIRD_SIZE_BUFFER > monitor_size.height as i32 =>
+            {
+                bird_direction.v.y *= -1
+            }
             _ => {}
         }
 
