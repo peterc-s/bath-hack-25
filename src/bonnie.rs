@@ -1,20 +1,9 @@
+use crate::plugins::bonnie_state::BonnieState;
 use bevy::prelude::*;
-use strum::{EnumDiscriminants, EnumIter};
 
 #[derive(Component, Default)]
 pub struct Bonnie {
     pub state: BonnieState,
-}
-
-#[derive(Component, Default, Debug, Clone, Copy, PartialEq, EnumIter, EnumDiscriminants)]
-#[strum_discriminants(derive(EnumIter))]
-pub enum BonnieState {
-    #[default]
-    Idle,
-    Walking(IVec2),
-    Pooping,
-    Chasing,
-    Teaching,
 }
 
 #[derive(Component, Debug)]
@@ -30,6 +19,12 @@ impl StateMachine {
 
     pub fn unblock(&mut self) {
         self.can_change = true;
+    }
+
+    pub fn finish(&mut self) {
+        self.can_change = true;
+        let remaining = self.timer.remaining();
+        self.timer.tick(remaining);
     }
 
     pub fn toggle_block(&mut self) {
