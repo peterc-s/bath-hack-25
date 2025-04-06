@@ -30,6 +30,7 @@ impl Plugin for BonnieStatePlugin {
                 state_transition,
                 state_behaviours,
                 close_poop_window_on_click,
+                close_teach_window_on_click,
             ),
         );
     }
@@ -99,6 +100,39 @@ macro_rules! move_bonnie_to {
         }
     }};
 }
+
+///////
+// Teaching
+///////
+
+#[derive(Component)]
+struct TeachingWindowMarker;
+
+fn close_teach_window_on_click(
+    mut commands: Commands,
+    mut mouse_button_events: EventReader<MouseButtonInput>,
+    teach_windows: Query<(), With<TeachingWindowMarker>>,
+    mut machine_query: Query<&mut StateMachine>,
+) {
+    // get mouse events
+    for event in mouse_button_events.read() {
+        // if left click and is on a teach window
+        if event.button == MouseButton::Left
+            && event.state == ButtonState::Pressed
+            && teach_windows.get(event.window).is_ok()
+        {
+            // despawn the teach window
+            commands.entity(event.window).despawn_recursive();
+            let mut machine = machine_query
+                .get_single_mut()
+                .expect("Failed to get state machine.");
+            let remaining = machine.timer.remaining();
+            machine.timer.tick(remaining);
+            machine.unblock();
+        }
+    }
+}
+
 ///////
 // State
 ///////
@@ -138,6 +172,7 @@ fn random_state(current_state: BonnieState, screen_res: PhysicalSize<u32>) -> Bo
         }
         BonnieStateDiscriminants::Pooping => BonnieState::Pooping,
         BonnieStateDiscriminants::Chasing => BonnieState::Chasing,
+        BonnieStateDiscriminants::Teaching => BonnieState::Teaching,
     }
 }
 
@@ -146,6 +181,8 @@ fn state_transition(
     mut query: Query<(&mut Bonnie, &mut StateMachine)>,
     winit_windows: NonSend<WinitWindows>,
     window_query: Query<Entity, With<PrimaryWindow>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     let mut rng = rand::rng();
 
@@ -181,6 +218,62 @@ fn state_transition(
                 match bonnie.state {
                     BonnieState::Walking(_) => machine.block(),
                     BonnieState::Chasing => machine.block(),
+                    BonnieState::Teaching => {
+                        machine.block();
+
+                        let pos = WindowPosition::At(IVec2::new(-100, 300));
+
+                        let teach_window = commands
+                            .spawn((
+                                Window {
+                                    transparent: true,
+                                    composite_alpha_mode: get_composite_mode(),
+                                    decorations: false,
+                                    resizable: false,
+                                    has_shadow: false,
+                                    titlebar_shown: false,
+                                    titlebar_transparent: false,
+                                    titlebar_show_buttons: false,
+                                    titlebar_show_title: false,
+                                    title: "Education!".to_string(),
+                                    name: Some("bonnie.buddy".into()),
+                                    resolution: (300.0, 300.0).into(),
+                                    resize_constraints: WindowResizeConstraints {
+                                        min_width: 300.0,
+                                        min_height: 300.0,
+                                        max_width: 300.0,
+                                        max_height: 300.0,
+                                    },
+                                    present_mode: PresentMode::AutoNoVsync,
+                                    window_level: WindowLevel::AlwaysOnTop,
+                                    position: pos,
+                                    ..default()
+                                },
+                                TeachingWindowMarker,
+                            ))
+                            .id();
+
+                        // spawn a camera2d on render layer 1
+                        commands.spawn((
+                            #[allow(deprecated)]
+                            Camera2dBundle {
+                                camera: Camera {
+                                    target: RenderTarget::Window(WindowRef::Entity(teach_window)),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            RenderLayers::layer(43),
+                        ));
+
+                        // get the sprite
+                        let mut teach_sprite =
+                            Sprite::from_image(asset_server.load("educational/meme1.png"));
+                        teach_sprite.custom_size = Some(Vec2::new(300.0, 300.0));
+
+                        // spawn the sprite on the render layer 1
+                        commands.spawn((teach_sprite, RenderLayers::layer(43)));
+                    }
                     _ => {}
                 }
 
@@ -197,8 +290,9 @@ fn state_transition(
 fn state_behaviours(
     mut bonnie_query: Query<&mut Bonnie, With<Sprite>>,
     mut machine_query: Query<&mut StateMachine>,
-    mut window_query: Query<&mut Window, With<PrimaryWindow>>,
+    mut window_query: Query<&mut Window, (With<PrimaryWindow>, Without<TeachingWindowMarker>)>,
     window_entity_query: Query<Entity, With<PrimaryWindow>>,
+    mut teach_window_query: Query<&mut Window, With<TeachingWindowMarker>>,
     mut commands: Commands,
     winit_windows: NonSend<WinitWindows>,
     asset_server: Res<AssetServer>,
@@ -295,6 +389,32 @@ fn state_behaviours(
                 if let Some(to) = cursor_pos.0 {
                     let to = to.as_ivec2() - IVec2::new(90, 147);
                     move_bonnie_to!(window, machine, to, speed, time.delta_secs_f64());
+                }
+            }
+            BonnieState::Teaching => {
+                if let Ok(mut teach_window) = teach_window_query.get_single_mut() {
+                    let current_pos = match teach_window.position {
+                        WindowPosition::At(pos) => pos,
+                        _ => IVec2::new(100, 100),
+                    };
+
+                    let current_bonnie_pos = match window.position {
+                        WindowPosition::At(pos) => pos,
+                        _ => IVec2::new(100, 100),
+                    };
+
+                    let speed = get_resolution_based_speed(monitor_size, 0.8);
+                    let diff = current_bonnie_pos - current_pos;
+                    let len = diff.as_vec2().length();
+                    let move_per_frame = (speed as f64 * time.delta_secs_f64()) as f32;
+                    let move_size = move_per_frame.min(len);
+
+                    if len > move_per_frame {
+                        let direction = diff.as_vec2().normalize();
+                        let move_vec = (direction * move_size).round().as_ivec2();
+
+                        teach_window.position = WindowPosition::At(current_pos + move_vec);
+                    }
                 }
             }
         }
