@@ -9,7 +9,7 @@ use plugins::control;
 use plugins::global_cursor;
 
 pub mod bonnie;
-use bonnie::{Bonnie, BonnieState, StateMachine};
+use bonnie::{Bonnie, StateMachine};
 
 #[cfg(target_os = "macos")]
 pub fn get_composite_mode() -> CompositeAlphaMode {
