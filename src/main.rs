@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::window::{PresentMode, WindowLevel};
+use bevy::window::WindowLevel;
 use bevy::{prelude::*, window::CompositeAlphaMode};
 
 mod plugins;
@@ -51,7 +51,6 @@ fn main() {
                             max_width: 100.0,
                             max_height: 100.0,
                         },
-                        present_mode: PresentMode::AutoNoVsync,
                         window_level: WindowLevel::AlwaysOnTop,
                         ..default()
                     }),
