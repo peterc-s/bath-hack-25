@@ -12,10 +12,8 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, view::RenderLayers},
     utils::Duration,
-    window::{CursorOptions, PresentMode, PrimaryWindow, WindowLevel, WindowRef},
-    winit::WinitWindows,
+    window::{CursorOptions, Monitor, PresentMode, PrimaryWindow, WindowLevel, WindowRef},
 };
-use dpi::PhysicalSize;
 use rand::{
     Rng, SeedableRng, TryRngCore,
     prelude::{IndexedRandom, IteratorRandom},
@@ -139,8 +137,7 @@ fn handle_state_transitions(
     time: Res<Time>,
     mut bonnie: Query<&mut Bonnie>,
     mut machine: Query<&mut StateMachine>,
-    winit_windows: NonSend<WinitWindows>,
-    window_query: Query<Entity, With<PrimaryWindow>>,
+    monitor_query: Query<&Monitor>,
     mut next_state: ResMut<NextState<BonnieState>>,
     mut rng: ResMut<GlobalRng>,
 ) {
@@ -154,15 +151,10 @@ fn handle_state_transitions(
     // if the machine can change state and is finished
     if machine.can_change && machine.timer.finished() {
         // get the monitor
-        let monitor = window_query
-            .get_single()
-            .ok()
-            .and_then(|entity| winit_windows.get_window(entity))
-            .and_then(|winit_window| winit_window.current_monitor())
-            .expect("Failed to get monitor.");
+        let monitor = monitor_query.single();
 
         // generate a new random state
-        let new_state = random_state(&bonnie.state, &mut rng.0, monitor.size());
+        let new_state = random_state(&bonnie.state, &mut rng.0, monitor.physical_size());
         info!("Changing state from {:?} to {:?}.", bonnie.state, new_state);
 
         // set the state
@@ -178,18 +170,14 @@ fn handle_state_transitions(
     }
 }
 
-fn random_state(
-    current: &BonnieState,
-    rng: &mut impl Rng,
-    monitor_size: PhysicalSize<u32>,
-) -> BonnieState {
+fn random_state(current: &BonnieState, rng: &mut impl Rng, monitor_size: UVec2) -> BonnieState {
     let mut next_state = BonnieStateDiscriminants::iter()
         .filter(|d| *d != BonnieStateDiscriminants::from(current))
         .choose(rng)
         .map_or(BonnieState::Idle, |disc| match disc {
             BonnieStateDiscriminants::Walking => {
-                let x_range = WINDOW_SIZE_BUFFER..(monitor_size.width - WINDOW_SIZE_BUFFER);
-                let y_range = WINDOW_SIZE_BUFFER..(monitor_size.height - WINDOW_SIZE_BUFFER);
+                let x_range = WINDOW_SIZE_BUFFER..(monitor_size.x - WINDOW_SIZE_BUFFER);
+                let y_range = WINDOW_SIZE_BUFFER..(monitor_size.y - WINDOW_SIZE_BUFFER);
                 BonnieState::Walking(IVec2::new(
                     rng.random_range(x_range) as i32,
                     rng.random_range(y_range) as i32,
@@ -202,19 +190,19 @@ fn random_state(
         BonnieState::Walking(_) => {
             // randomly generate a coordinate to go to with some buffer
             let x_min = 150;
-            let x_max = monitor_size.width.saturating_sub(150);
+            let x_max = monitor_size.x.saturating_sub(150);
             let x_to = if x_max > x_min {
                 rng.random_range(x_min..x_max)
             } else {
-                rng.random_range(0..monitor_size.width)
+                rng.random_range(0..monitor_size.x)
             };
 
             let y_min = 150;
-            let y_max = monitor_size.height.saturating_sub(150);
+            let y_max = monitor_size.y.saturating_sub(150);
             let y_to = if y_max > y_min {
                 rng.random_range(y_min..y_max)
             } else {
-                rng.random_range(0..monitor_size.height)
+                rng.random_range(0..monitor_size.y)
             };
 
             BonnieState::Walking((x_to as i32, y_to as i32).into())
@@ -320,8 +308,7 @@ fn handle_window_closing<T: Component>(
 fn handle_movement(
     time: Res<Time>,
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
-    winit_windows: NonSend<WinitWindows>,
-    window_entity_query: Query<Entity, With<PrimaryWindow>>,
+    monitor_query: Query<&Monitor>,
     state: Res<State<BonnieState>>,
     cursor_pos: Res<GlobalCursorPosition>,
 ) {
@@ -329,12 +316,7 @@ fn handle_movement(
         return;
     };
 
-    let monitor = window_entity_query
-        .get_single()
-        .ok()
-        .and_then(|entity| winit_windows.get_window(entity))
-        .and_then(|winit_window| winit_window.current_monitor())
-        .expect("Failed to get monitor.");
+    let monitor = monitor_query.single();
 
     let target_position = match *state.get() {
         BonnieState::Walking(target) => target,
@@ -351,7 +333,7 @@ fn handle_movement(
     };
 
     let direction = (target_position - current_position).as_vec2().normalize();
-    let speed = calculate_movement_speed(monitor.size(), state.get());
+    let speed = calculate_movement_speed(monitor.physical_size(), state.get());
     let delta = direction * speed * time.delta_secs_f64() as f32;
 
     let remaining_vector = target_position - current_position;
@@ -365,8 +347,8 @@ fn handle_movement(
     }
 }
 
-fn calculate_movement_speed(resolution: PhysicalSize<u32>, state: &BonnieState) -> f32 {
-    let diagonal = ((resolution.width.pow(2) + resolution.height.pow(2)) as f32).sqrt();
+fn calculate_movement_speed(resolution: UVec2, state: &BonnieState) -> f32 {
+    let diagonal = ((resolution.x.pow(2) + resolution.y.pow(2)) as f32).sqrt();
     let base_speed = match state {
         BonnieState::Chasing => 2.0,
         BonnieState::Teaching => 3.0,
@@ -482,12 +464,9 @@ fn setup_pooping(
         .id();
 
     commands.spawn((
-        #[allow(deprecated)]
-        Camera2dBundle {
-            camera: Camera {
-                target: RenderTarget::Window(WindowRef::Entity(poop_window)),
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            target: RenderTarget::Window(WindowRef::Entity(poop_window)),
             ..default()
         },
         RenderLayers::layer(POOP_LAYER),
@@ -552,8 +531,7 @@ fn handle_teaching(
     mut teach_window: Query<&mut Window, (With<TeachWindow>, Without<PrimaryWindow>)>,
     bonnie_window: Query<&Window, With<PrimaryWindow>>,
     time: Res<Time>,
-    winit_windows: NonSend<WinitWindows>,
-    window_entity_query: Query<Entity, With<PrimaryWindow>>,
+    monitor_query: Query<&Monitor>,
 ) {
     // get the teach window
     let Ok(mut window) = teach_window.get_single_mut() else {
@@ -574,16 +552,11 @@ fn handle_teaching(
         _ => IVec2::ZERO,
     };
 
-    let monitor = window_entity_query
-        .get_single()
-        .ok()
-        .and_then(|entity| winit_windows.get_window(entity))
-        .and_then(|winit_window| winit_window.current_monitor())
-        .expect("Failed to get monitor.");
+    let monitor = monitor_query.single();
 
     // get direction and delta
     let direction = (target - current_pos).as_vec2().normalize();
-    let speed = calculate_movement_speed(monitor.size(), &BonnieState::Teaching);
+    let speed = calculate_movement_speed(monitor.physical_size(), &BonnieState::Teaching);
     let delta = direction * speed * (time.delta_secs_f64() as f32);
 
     // calculate remaining
@@ -651,12 +624,9 @@ fn setup_teaching(
 
     // spawn a camera2d on TEACH_LAYER
     commands.spawn((
-        #[allow(deprecated)]
-        Camera2dBundle {
-            camera: Camera {
-                target: RenderTarget::Window(WindowRef::Entity(teach_window)),
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            target: RenderTarget::Window(WindowRef::Entity(teach_window)),
             ..default()
         },
         RenderLayers::layer(TEACH_LAYER),
@@ -708,12 +678,9 @@ fn setup_teaching(
 
     // spawn a camera2d on NERD_LAYER
     commands.spawn((
-        #[allow(deprecated)]
-        Camera2dBundle {
-            camera: Camera {
-                target: RenderTarget::Window(WindowRef::Entity(nerd_window)),
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            target: RenderTarget::Window(WindowRef::Entity(nerd_window)),
             ..default()
         },
         RenderLayers::layer(NERD_LAYER),
@@ -832,12 +799,9 @@ fn setup_bird(
 
     // spawn a camera2d on BIRD_LAYER
     commands.spawn((
-        #[allow(deprecated)]
-        Camera2dBundle {
-            camera: Camera {
-                target: RenderTarget::Window(WindowRef::Entity(bird_window)),
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            target: RenderTarget::Window(WindowRef::Entity(bird_window)),
             ..default()
         },
         RenderLayers::layer(BIRD_LAYER),
@@ -848,17 +812,10 @@ fn setup_bird(
 
 fn update_birds(
     mut bird_windows: Query<(&mut Window, &mut BirdDirection, &mut Sprite)>,
-    winit_windows: NonSend<WinitWindows>,
-    window_entity_query: Query<Entity, With<PrimaryWindow>>,
+    monitor_query: Query<&Monitor>,
     time: Res<Time>,
 ) {
-    let monitor_size = window_entity_query
-        .get_single()
-        .ok()
-        .and_then(|entity| winit_windows.get_window(entity))
-        .and_then(|winit_window| winit_window.current_monitor())
-        .expect("Failed to get monitor.")
-        .size();
+    let monitor_size = monitor_query.single().physical_size();
 
     for (mut bird_window, mut bird_direction, mut bird_sprite) in &mut bird_windows {
         let current_pos = match bird_window.position {
@@ -870,7 +827,7 @@ fn update_birds(
             IVec2 { x, .. } if x < BIRD_SIZE_BUFFER => {
                 bird_direction.v.x = 1;
             }
-            IVec2 { x, .. } if x + BIRD_SIZE_BUFFER > monitor_size.width as i32 => {
+            IVec2 { x, .. } if x + BIRD_SIZE_BUFFER > monitor_size.x as i32 => {
                 bird_direction.v.x = -1;
             }
 
@@ -878,7 +835,7 @@ fn update_birds(
             IVec2 { y, .. } if y < BIRD_SIZE_BUFFER => {
                 bird_direction.v.y = 1;
             }
-            IVec2 { y, .. } if y + BIRD_SIZE_BUFFER > monitor_size.height as i32 => {
+            IVec2 { y, .. } if y + BIRD_SIZE_BUFFER > monitor_size.y as i32 => {
                 bird_direction.v.y = -1;
             }
             _ => {}
@@ -946,12 +903,9 @@ fn create_scratch(
 
     // spawn a camera2d on SCRATCH_LAYER
     commands.spawn((
-        #[allow(deprecated)]
-        Camera2dBundle {
-            camera: Camera {
-                target: RenderTarget::Window(WindowRef::Entity(scratch_window)),
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            target: RenderTarget::Window(WindowRef::Entity(scratch_window)),
             ..default()
         },
         RenderLayers::layer(SCRATCH_LAYER),
